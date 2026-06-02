@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencode.ai/config.schema.json",
+  "title": "opencode config",
+  "type": "object",
+  "required": ["$schema", "model", "agent"],
+  "properties": {
+    "$schema": { "const": "https://opencode.ai/config.json" },
+    "model": { "type": "string", "pattern": "^[a-z0-9_-]+/[a-z0-9_.-]+$" },
+    "small_model": { "type": "string", "pattern": "^[a-z0-9_-]+/[a-z0-9_.-]+$" },
+    "default_agent": { "type": "string" },
+    "enabled_providers": { "type": "array", "items": { "type": "string" } },
+    "mcp": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["type", "command"],
+            "properties": {
+              "type": { "const": "local" },
+              "command": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        ]
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["description", "template"],
+        "properties": {
+          "description": { "type": "string", "minLength": 10 },
+          "template": { "type": "string", "minLength": 50 }
+        }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/agentEntry" }
+    }
+  },
+  "$defs": {
+    "agentEntry": {
+      "type": "object",
+      "required": ["model", "fallback_model", "description", "mode", "prompt"],
+      "properties": {
+        "model": { "type": "string", "pattern": "^[a-z0-9_-]+/[a-z0-9_.-]+$" },
+        "fallback_model": { "type": "string", "pattern": "^[a-z0-9_-]+/[a-z0-9_.-]+$" },
+        "description": { "type": "string", "minLength": 20 },
+        "mode": { "enum": ["primary", "subagent", "all"] },
+        "prompt": { "type": "string", "minLength": 50 },
+        "permission": { "type": "object" }
+      }
+    }
+  }
+}

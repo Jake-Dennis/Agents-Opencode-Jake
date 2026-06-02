@@ -28,3 +28,9 @@ desktop.ini
 
 # Graphify (auto-managed, regenerate with /graphify .)
 graphify-out/
+
+# Python test cache
+__pycache__/
+*.py[cod]
+*.pyo
+tests/__pycache__/
