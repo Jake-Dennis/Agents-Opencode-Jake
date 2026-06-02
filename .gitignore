@@ -1,0 +1,30 @@
+# Build artifacts
+node_modules/
+*.zip
+*.bak
+*.tmp
+*.log
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# OS
+.DS_Store
+desktop.ini
+
+# Opencode runtime cache
+.opencode/node_modules/
+.opencode/.DS_Store
+
+# Graphify (auto-managed, regenerate with /graphify .)
+graphify-out/
