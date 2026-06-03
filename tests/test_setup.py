@@ -26,6 +26,9 @@ required = [
     "opencode.json",
     "AGENTS.md",
     "setup.bat",
+    "global-setup.bat",
+    "uninstall.bat",
+    "uninstall-global.bat",
     ".opencode/work-log.md",
     ".opencode/todo.md",
     ".opencode/plans/.gitkeep",
@@ -152,14 +155,21 @@ check("pre-commit" in setup.lower(), "local setup.bat installs pre-commit hook")
 check(".config\\opencode" in gsetup or ".config/opencode" in gsetup, "global-setup.bat targets opencode config")
 check("mklink" in gsetup, "global-setup.bat uses symlinks")
 
-# 11. Plan file structure
-print("\n[11] Plan/archive structure")
+# 11. Uninstall scripts exist
+print("\n[11] Uninstall scripts")
+check((REPO / "uninstall.bat").exists(), "uninstall.bat exists")
+check((REPO / "uninstall-global.bat").exists(), "uninstall-global.bat exists")
+check("pre-commit" in (REPO / "uninstall.bat").read_text(), "uninstall.bat removes pre-commit hook")
+check("AGENTS_DIR" in (REPO / "uninstall-global.bat").read_text(), "uninstall-global.bat references global directories")
+
+# 12. Plan file structure
+print("\n[12] Plan/archive structure")
 check((REPO / ".opencode/plans").is_dir(), ".opencode/plans is a directory")
 check((REPO / ".opencode/plans/completed").is_dir(), ".opencode/plans/completed is a directory")
 check((REPO / ".opencode/decisions").is_dir(), ".opencode/decisions is a directory")
 
-# 12. Counting
-print("\n[12] Counts")
+# 13. Counting
+print("\n[13] Counts")
 md_files = list((REPO / ".opencode/agents").glob("*.md"))
 check(len(md_files) == 0, f"0 agent .md files (JSON is source of truth) (got {len(md_files)})")
 check(len(cfg["agent"]) == 13, f"13 agent entries in opencode.json (got {len(cfg['agent'])})")

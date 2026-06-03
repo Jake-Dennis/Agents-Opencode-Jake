@@ -26,6 +26,10 @@ setup.bat
 # On Windows — global setup (all projects)
 global-setup.bat
 
+# On Windows — uninstall
+uninstall.bat          # removes local setup
+uninstall-global.bat   # removes global setup
+
 # On macOS/Linux
 #   mkdir -p .opencode
 #   ln -s ../Agents-Opencode-Jake/.opencode/skills .opencode/skills
