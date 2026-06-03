@@ -16,29 +16,20 @@ This is a reusable `opencode.json` agent collection. It provides:
 
 ### Option A — clone and symlink
 
-```bash
+```cmd
+:: 1. Clone the repo
 git clone https://github.com/Jake-Dennis/Agents-Opencode-Jake.git
-cd your-project
+cd Agents-Opencode-Jake
 
-# On Windows — local setup (per-project)
+:: 2. Run setup — installs everything into your project
 setup.bat
 
-# On Windows — global setup (all projects)
-global-setup.bat
-
-# On Windows — uninstall
-uninstall.bat          # removes local setup
-uninstall-global.bat   # removes global setup
-
-# On macOS/Linux
-#   mkdir -p .opencode
-#   ln -s ../Agents-Opencode-Jake/.opencode/skills .opencode/skills
-# Copy opencode.json into your project root
+:: 3. Open in OpenCode
+opencode .
+/graphify .
 ```
 
-### Option B — use the `dist/` folder (easiest copy)
-
-The `dist/` folder contains everything in one place — just copy it into your project:
+Or copy the `dist/` folder into any existing project:
 
 ```cmd
 xcopy /E /I path\to\Agents-Opencode-Jake\dist\* your-project\
@@ -46,9 +37,17 @@ cd your-project
 setup.bat
 ```
 
-Then merge the `"agent"` block from `dist/opencode.json` into your project's config (or use it as-is). See `dist/README.md` for details.
+**One command does it all:** copies AGENTS.md, merges the 13 agents into opencode.json, installs the pre-commit hook, creates .opencode structure, builds the knowledge graph.
 
-### Option C — copy `opencode.json` only
+### Other scripts
+
+| Script | Purpose |
+|--------|---------|
+| `global-setup.bat` | Install agents globally for ALL projects |
+| `uninstall.bat` | Remove local setup |
+| `uninstall-global.bat` | Remove global setup |
+
+### Option — copy `opencode.json` only
 
 ```bash
 # In your project root:

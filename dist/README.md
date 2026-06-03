@@ -2,32 +2,30 @@
 
 This folder contains everything you need to use the conductor + 13 subagents in **any** OpenCode project.
 
-## Quick install
+## Quick start
 
 ```cmd
 :: 1. Copy this folder into your project root
-xcopy /E /I dist\* your-project\
+xcopy /E /I path\to\Agents-Opencode-Jake\dist\* your-project\
 cd your-project
 
-:: 2. Merge agents into your opencode.json
-::    Copy the "agent": { ... } block from dist/opencode.json
-::    into your project's opencode.json (or use dist/opencode.json as-is)
-
-:: 3. Run setup
+:: 2. Run setup — installs everything
 setup.bat
 
-:: 4. Open in OpenCode
+:: 3. Open in OpenCode
 opencode .
 /graphify .
 ```
+
+That's it. `setup.bat` copies AGENTS.md, the agent config, scripts, skill, creates `.opencode/` structure, installs the pre-commit hook, and builds the knowledge graph — all from a single command.
 
 ## What's in here
 
 | File | Purpose |
 |------|---------|
-| `opencode.json` | Standalone config with all 13 agents. Copy the `"agent"` block into your project's config, or use this file directly if you don't have one yet. |
+| `opencode.json` | Standalone config with all 13 agents. |
 | `AGENTS.md` | Agent workflow docs. Referenced by `instructions: ["AGENTS.md"]` in opencode.json. |
-| `setup.bat` | **Local** install: pre-commit hook, knowledge graph, .opencode structure. |
+| `setup.bat` | **Run this.** Installs everything into your project. |
 | `global-setup.bat` | **Global** install: symlinks agents/skills into `%USERPROFILE%\.config\opencode\`. |
 | `uninstall.bat` | Removes local setup (hook, .opencode/, graphify-out/). |
 | `uninstall-global.bat` | Removes global setup (symlinks, config). |
@@ -36,24 +34,6 @@ opencode .
 | `.opencode/skills/graphify-agent-workflow/SKILL.md` | Graphify skill for knowledge graph queries. |
 | `.opencode/plans/` | Plan storage (conductor creates/archives plans here). |
 | `.opencode/decisions/` | Architecture Decision Records. |
-
-## What you still need to do
-
-1. **Merge `opencode.json`** — Your project may already have an `opencode.json`. Copy the `"agent"` block from `dist/opencode.json` into yours:
-
-   ```json
-   {
-     "model": "opencode/deepseek-v4-flash-free",
-     "instructions": ["AGENTS.md"],
-     "agent": {
-       "conductor": { ... },
-       "builder": { ... },
-       ...all 13 agents...
-     }
-   }
-   ```
-
-2. **First run** — After setup, open OpenCode and run `/graphify .` to build the project's knowledge graph, then `/setup-project` to finalize.
 
 ## Files you can ignore (already in .gitignore)
 
