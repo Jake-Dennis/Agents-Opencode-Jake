@@ -29,14 +29,6 @@ opencode .
 /graphify .
 ```
 
-Or copy the `dist/` folder into any existing project:
-
-```cmd
-xcopy /E /I path\to\Agents-Opencode-Jake\dist\* your-project\
-cd your-project
-setup.bat
-```
-
 **One command does it all:** copies AGENTS.md, merges the 13 agents into opencode.json, installs the pre-commit hook, creates .opencode structure, builds the knowledge graph.
 
 ### Other scripts

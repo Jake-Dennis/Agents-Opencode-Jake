@@ -35,15 +35,7 @@ required = [
     ".opencode/plans/completed/.gitkeep",
     ".opencode/decisions/.gitkeep",
     ".opencode/skills/graphify-agent-workflow/SKILL.md",
-    "dist/opencode.json",
-    "dist/README.md",
-    "dist/AGENTS.md",
-    "dist/setup.bat",
-    "dist/global-setup.bat",
-    "dist/uninstall.bat",
-    "dist/uninstall-global.bat",
-    "dist/scripts/verify-plan.py",
-    "dist/scripts/pre-commit",
+
 ]
 for f in required:
     check((REPO / f).exists(), f"exists: {f}")
@@ -183,20 +175,6 @@ md_files = list((REPO / ".opencode/agents").glob("*.md"))
 check(len(md_files) == 0, f"0 agent .md files (JSON is source of truth) (got {len(md_files)})")
 check(len(cfg["agent"]) == 13, f"13 agent entries in opencode.json (got {len(cfg['agent'])})")
 check(len(cfg["command"]) == 2, f"2 custom commands (got {len(cfg['command'])})")
-
-# 14. dist/opencode.json matches root opencode.json
-print("\n[14] dist/opencode.json integrity")
-try:
-    with open(REPO / "dist/opencode.json", encoding="utf-8") as fh:
-        dist_cfg = json.load(fh)
-    check(len(dist_cfg["agent"]) == len(cfg["agent"]),
-          f"dist/opencode.json has {len(dist_cfg['agent'])} agents (root has {len(cfg['agent'])})")
-    check(dist_cfg["model"] == cfg["model"], "dist/opencode.json model matches root")
-    check(dist_cfg["default_agent"] == cfg["default_agent"], "dist/opencode.json default_agent matches root")
-    check("AGENTS.md" in dist_cfg.get("instructions", []), "dist/opencode.json points to AGENTS.md")
-except Exception as e:
-    errors.append(f"dist/opencode.json invalid: {e}")
-    print(f"  FAIL: dist/opencode.json: {e}")
 
 # Summary
 print("\n" + "=" * 60)
