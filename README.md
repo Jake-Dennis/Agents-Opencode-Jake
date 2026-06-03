@@ -36,7 +36,19 @@ uninstall-global.bat   # removes global setup
 # Copy opencode.json into your project root
 ```
 
-### Option B — copy `opencode.json` only
+### Option B — use the `dist/` folder (easiest copy)
+
+The `dist/` folder contains everything in one place — just copy it into your project:
+
+```cmd
+xcopy /E /I path\to\Agents-Opencode-Jake\dist\* your-project\
+cd your-project
+setup.bat
+```
+
+Then merge the `"agent"` block from `dist/opencode.json` into your project's config (or use it as-is). See `dist/README.md` for details.
+
+### Option C — copy `opencode.json` only
 
 ```bash
 # In your project root:
