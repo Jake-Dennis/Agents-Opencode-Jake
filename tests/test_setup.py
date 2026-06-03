@@ -39,7 +39,9 @@ required = [
     "dist/README.md",
     "dist/AGENTS.md",
     "dist/setup.bat",
+    "dist/global-setup.bat",
     "dist/uninstall.bat",
+    "dist/uninstall-global.bat",
     "dist/scripts/verify-plan.py",
     "dist/scripts/pre-commit",
 ]

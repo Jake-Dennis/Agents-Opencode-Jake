@@ -27,8 +27,10 @@ opencode .
 |------|---------|
 | `opencode.json` | Standalone config with all 13 agents. Copy the `"agent"` block into your project's config, or use this file directly if you don't have one yet. |
 | `AGENTS.md` | Agent workflow docs. Referenced by `instructions: ["AGENTS.md"]` in opencode.json. |
-| `setup.bat` | Installs pre-commit hook, builds knowledge graph, creates .opencode structure. |
-| `uninstall.bat` | Removes pre-commit hook, cleans up .opencode/ and graphify-out/. |
+| `setup.bat` | **Local** install: pre-commit hook, knowledge graph, .opencode structure. |
+| `global-setup.bat` | **Global** install: symlinks agents/skills into `%USERPROFILE%\.config\opencode\`. |
+| `uninstall.bat` | Removes local setup (hook, .opencode/, graphify-out/). |
+| `uninstall-global.bat` | Removes global setup (symlinks, config). |
 | `scripts/verify-plan.py` | Mechanical plan verification (mandatory conductor step 8). |
 | `scripts/pre-commit` | Pre-commit hook: validates JSON, runs schema check, tests, and plan verification. |
 | `.opencode/skills/graphify-agent-workflow/SKILL.md` | Graphify skill for knowledge graph queries. |
