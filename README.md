@@ -19,8 +19,13 @@ This is a reusable `opencode.json` agent collection. It provides:
 ```bash
 git clone https://github.com/Jake-Dennis/Agents-Opencode-Jake.git
 cd your-project
-# On Windows (run from the repo root)
+
+# On Windows — local setup (per-project)
 setup.bat
+
+# On Windows — global setup (all projects)
+global-setup.bat
+
 # On macOS/Linux
 #   mkdir -p .opencode
 #   ln -s ../Agents-Opencode-Jake/.opencode/skills .opencode/skills

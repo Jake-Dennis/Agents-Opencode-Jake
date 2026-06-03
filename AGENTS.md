@@ -52,12 +52,11 @@ The conductor automatically checks `.opencode/todo.md` on startup and asks if yo
 
 ## Models
 
-All agents use a fallback chain:
+All agents use `opencode/deepseek-v4-flash-free` for both primary and fallback:
 
-- **Primary:** `opencode/minimax-m3-free` — fast, free, capable
-- **Fallback:** `opencode/big-pickle` — used when primary is unavailable (title generation, utility tasks)
-
-The conductor defaults to `minimax-m3-free`. Top-level `small_model` is set to `big-pickle` for utility/compaction tasks.
+- **Model:** `opencode/deepseek-v4-flash-free`
+- **Fallback:** `opencode/deepseek-v4-flash-free`
+- **Reasoning effort:** `max` (set in `provider.opencode.options`)
 
 ## Commands
 

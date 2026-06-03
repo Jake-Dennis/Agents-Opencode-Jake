@@ -50,8 +50,8 @@ except Exception as e:
 
 check(cfg.get("$schema") == "https://opencode.ai/config.json", "schema URL correct")
 check(cfg.get("default_agent") == "conductor", "default_agent is conductor")
-check(cfg.get("model") == "opencode/minimax-m3-free", "top-level model is minimax-m3-free")
-check(cfg.get("small_model") == "opencode/minimax-m3-free", "small_model is minimax-m3-free")
+check(cfg.get("model") == "opencode/deepseek-v4-flash-free", "top-level model is deepseek-v4-flash-free")
+check(cfg.get("small_model") == "opencode/deepseek-v4-flash-free", "small_model is deepseek-v4-flash-free")
 check(cfg.get("enabled_providers") == ["opencode"], "enabled_providers is opencode")
 check("plugin" not in cfg or "oh-my-openagent@latest" not in cfg.get("plugin", []), "oh-my-openagent plugin NOT registered")
 check("mcp" in cfg and "graphify" in cfg["mcp"], "graphify MCP server configured")
@@ -79,10 +79,10 @@ for name in EXPECTED_AGENTS:
     if not entry:
         errors.append(f"agent '{name}' missing from opencode.json")
         continue
-    check(entry.get("model") == "opencode/minimax-m3-free",
-          f"agent.{name}.model == minimax-m3-free")
-    check(entry.get("fallback_model") == "opencode/big-pickle",
-          f"agent.{name}.fallback_model == big-pickle")
+    check(entry.get("model") == "opencode/deepseek-v4-flash-free",
+          f"agent.{name}.model == deepseek-v4-flash-free")
+    check(entry.get("fallback_model") == "opencode/deepseek-v4-flash-free",
+          f"agent.{name}.fallback_model == deepseek-v4-flash-free")
     check("description" in entry and len(entry["description"]) > 20,
           f"agent.{name} has description")
     check("mode" in entry and entry["mode"] in ("primary", "subagent", "all"),
@@ -140,17 +140,17 @@ agents_md = (REPO / "AGENTS.md").read_text()
 check("conductor" in agents_md, "AGENTS.md mentions conductor")
 check("setup-project" in agents_md or "/setup-project" in agents_md, "AGENTS.md mentions /setup-project")
 check("build" in agents_md.lower() and "/build" in agents_md.lower(), "AGENTS.md mentions /build")
-check("minimax" in agents_md.lower(), "AGENTS.md mentions minimax")
-check("big-pickle" in agents_md.lower(), "AGENTS.md mentions big-pickle")
+check("deepseek" in agents_md.lower(), "AGENTS.md mentions deepseek-v4-flash-free")
 check("graphify" in agents_md.lower(), "AGENTS.md mentions graphify")
 
-# 10. setup.bat has expected sections
-print("\n[10] setup.bat")
+# 10. setup files exist
+print("\n[10] Setup scripts")
 setup = (REPO / "setup.bat").read_text()
-check("mkdir" in setup or "New-Item" in setup, "setup.bat creates directories")
-check(".config\\opencode" in setup or ".config/opencode" in setup, "setup.bat targets opencode config")
-check("mklink" in setup, "setup.bat uses symlinks")
-check("graphify" in setup.lower(), "setup.bat mentions graphify")
+gsetup = (REPO / "global-setup.bat").read_text()
+check("graphify" in setup.lower(), "local setup.bat mentions graphify")
+check("pre-commit" in setup.lower(), "local setup.bat installs pre-commit hook")
+check(".config\\opencode" in gsetup or ".config/opencode" in gsetup, "global-setup.bat targets opencode config")
+check("mklink" in gsetup, "global-setup.bat uses symlinks")
 
 # 11. Plan file structure
 print("\n[11] Plan/archive structure")

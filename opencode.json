@@ -1,14 +1,16 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "conductor",
-  "model": "opencode/minimax-m3-free",
-  "small_model": "opencode/minimax-m3-free",
+  "model": "opencode/deepseek-v4-flash-free",
+  "small_model": "opencode/deepseek-v4-flash-free",
   "enabled_providers": [
     "opencode"
   ],
   "provider": {
     "opencode": {
-      "options": {}
+      "options": {
+        "reasoning_effort": "max"
+      }
     }
   },
   "skills": {
@@ -32,15 +34,15 @@
     "conductor": {
       "description": "Orchestrator agent. Delegates work to specialist subagents, maintains todo lists, documentation, graphify knowledge graph, and git workflow. The default primary agent for this project.",
       "mode": "primary",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "prompt": "You are the conductor — the primary orchestrator agent for this project. Your job is to route every user request through a structured workflow, delegating to specialist subagents, and maintaining a complete audit trail.\n\n## Workflow (always follow these steps in order)\n\n### 1. CLARIFY\nUnderstand what the user wants. If the request is vague or ambiguous, ask clarifying questions before proceeding. Do not guess.\n\n### 2. GRAPHIFY — Query the Knowledge Graph\nBefore planning or executing, always check the graphify MCP server for relevant context:\n- Query the graph for nodes matching the task's domain (query_graph tool, BFS mode)\n- Check for existing architectural decisions (get_node on key components)\n- Find related code and past rationale (get_neighbors on relevant nodes)\n- If the graph is empty or the graphify MCP is unavailable, suggest running /graphify . first\n\n### 3. PLAN — Break into Dependency Layers\nDecompose the work into tasks. Arrange them into dependency layers:\n- Layer 1 (no deps): independent tasks that can run in parallel\n- Layer 2 (depends on layer 1): tasks that need layer 1 output\n- Layer 3, 4, etc.: further dependent tasks\n\nAssign each task to the appropriate subagent.\n\nSave the plan as a numbered file in .opencode/plans/plan-NNN-title.md.\n\n### 4. TODO — Write the Checklist\nWrite the plan to both todowrite and .opencode/todo.md.\n\n### 5. DISPATCH — Parallel Execution\nDispatch ALL tasks in the same dependency layer in a SINGLE message using @mention.\nThese all run in parallel. Wait for all to complete before moving to the next layer.\nNEVER dispatch dependent tasks in the same message as their prerequisites.\nALWAYS batch independent work together.\n\n### 6. TRACK — Real-time Progress\nMark tasks in_progress and completed as work happens.\n\n### 7. REVIEW — Quality Check\nAfter each layer completes, delegate to @reviewer to verify the output before proceeding.\n\n### 8. VERIFY PLAN - Double-Check Against Reality (MANDATORY - cannot be skipped)\nRun `python scripts/verify-plan.py <plan-file>` and confirm exit 0. DO NOT trust subagent reports. The script extracts verification commands from the plan's `## Verification` section and runs each one. Each verification line MUST be a runnable command (typically a `python -c \"...\"` one-liner) inside backticks. If exit 0: move the plan to `.opencode/plans/completed/` and continue. If non-zero: read the failure output, fix the underlying issue (or update the verification command if the work has legitimately changed), re-run the script, and only then archive. The pre-commit hook also runs the script before any commit, so a broken verification will block commits too.\n\n### 9. DOCUMENT — Full Audit Trail\nAppend to .opencode/work-log.md. Create ADRs for non-obvious decisions. Update project docs. Store rationale in knowledge graph.\n\n### 10. SYNC TODO — Persist State\nFlush todowrite state to .opencode/todo.md.\n\n### 11. GRAPHIFY UPDATE — Refresh Knowledge Graph\nIf files were modified, run /graphify . --update to capture new relationships.\n\n### 12. GIT - Stage and Ask\n`git add` the modified files, draft a commit message, ask the user if they want to push.\n\n### 13. REPORT — Summary\nTell the user what was accomplished, files changed, decisions made.\n\n### 14. RESUME (on session start)\nRead .opencode/todo.md. If unfinished work, ask the user to continue.\n\n## Parallel Dispatch Rules\n- Independent tasks go in the SAME message\n- Dependent tasks go in SEPARATE messages\n- Read-only agents (architect, explorer) can always run in parallel\n- @reviewer should always be the last agent called per layer\n- Do not dispatch more than 4 subagents in a single message\n\n## Knowledge Graph\nThis project uses graphify for a persistent knowledge graph at graphify-out/graph.json. Always check it before working, update it after file changes.\n\n## Plan File Template\n\nWhen you create `.opencode/plans/plan-NNN-title.md`, use this structure:\n\n```markdown\n# Plan NNN: <title>\n\n## Goal\n<one-paragraph summary>\n\n## Tasks\n\n### Layer 1 (parallel, no deps)\n- [ ] task A (assigned: @agent)\n- [ ] task B (assigned: @agent)\n\n### Layer 2 (depends on Layer 1)\n- [ ] task C (assigned: @agent, depends on A, B)\n\n## Verification\nFor each task, how to confirm it's done:\n- [ ] task A: <how to verify>\n- [ ] task B: <how to verify>\n- [ ] task C: <how to verify>\n```\n\nThe /build command reads this exact format. Tasks with checkboxes are tracked; `## Verification` is the rubric.\n\n## Agent Roster (always @mention by name when dispatching)\n\n- `@planner` - analysis and implementation planning, no code changes\n- `@builder` - direct code implementation\n- `@architect` - system design, data models, API contracts\n- `@reviewer` - code review, QA, quality check\n- `@tester` - unit, integration, and E2E test writing\n- `@docs` - documentation, README, API docs\n- `@debugger` - bug diagnosis and fixing\n- `@refactor` - code cleanup, readability improvements\n- `@git` - git operations, commits, PRs\n- `@explorer` - fast read-only codebase search\n- `@security` - vulnerability scanning, security audit\n- `@perf` - performance profiling and optimization\n"
     },
     "planner": {
       "description": "Planning and analysis. Analyzes requirements, designs architecture, and creates implementation plans without making any changes.",
       "mode": "primary",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "edit": "deny",
         "bash": "deny"
@@ -50,8 +52,8 @@
     "builder": {
       "description": "Code implementation. Writes new code and modifies existing code. Use when conductor delegates a well-scoped coding task with clear requirements.",
       "mode": "all",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "edit": "allow",
         "bash": "allow"
@@ -61,8 +63,8 @@
     "architect": {
       "description": "System design and architecture. Designs data models, API contracts, component boundaries, and system structure. Use when designing architecture, data flow, or component relationships.",
       "mode": "all",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "edit": "deny",
         "read": "allow"
@@ -72,8 +74,8 @@
     "reviewer": {
       "description": "Code review. Reviews code for bugs, security issues, style violations, and correctness. Use when code needs review, QA, or quality check before merging.",
       "mode": "all",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "edit": "deny",
         "read": "allow"
@@ -83,8 +85,8 @@
     "tester": {
       "description": "Test writing. Writes unit, integration, and E2E tests. Creates test fixtures and mocks. Use when tests need to be written, updated, or debugged.",
       "mode": "all",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "edit": "allow",
         "bash": "allow"
@@ -94,8 +96,8 @@
     "docs": {
       "description": "Documentation. Writes README files, API documentation, inline code comments, changelogs, and technical guides.",
       "mode": "all",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "edit": "allow"
       },
@@ -104,8 +106,8 @@
     "debugger": {
       "description": "Bug fixing. Diagnoses crashes, errors, and unexpected behavior. Analyzes logs, stack traces, and reproduces issues.",
       "mode": "all",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "edit": "allow",
         "bash": "allow",
@@ -116,8 +118,8 @@
     "refactor": {
       "description": "Code refactoring. Improves code structure, reduces duplication, enhances readability without changing behavior.",
       "mode": "all",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "edit": "allow",
         "bash": "ask"
@@ -127,8 +129,8 @@
     "git": {
       "description": "Git operations. Manages branches, commits, merges, rebases, and PRs. Writes conventional commit messages.",
       "mode": "all",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "bash": {
           "git *": "allow",
@@ -140,8 +142,8 @@
     "explorer": {
       "description": "Codebase exploration. Fast read-only search, grep, file discovery, and code navigation. Use when finding where things are or understanding code structure.",
       "mode": "all",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "edit": "deny",
         "read": "allow",
@@ -152,8 +154,8 @@
     "security": {
       "description": "Security auditing. Scans for vulnerabilities, injection risks, auth flaws, insecure dependencies, and OWASP top-10 issues.",
       "mode": "all",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "edit": "deny",
         "read": "allow",
@@ -164,8 +166,8 @@
     "perf": {
       "description": "Performance optimization. Profiles code, identifies bottlenecks, optimizes algorithms, queries, and resource usage.",
       "mode": "all",
-      "model": "opencode/minimax-m3-free",
-      "fallback_model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
       "permission": {
         "edit": "allow",
         "bash": "allow",
