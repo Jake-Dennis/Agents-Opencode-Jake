@@ -119,6 +119,43 @@ if not defined PY (
 )
 echo  Python: !PY!
 
+:: ---- Step 4a: Ensure graphify Python package is installed ----
+:: The MCP config in opencode.jsonc references `python3 -m graphify.serve`,
+:: so the graphify package must be importable for the MCP to start. The
+:: pip distribution name is `graphifyy` (typo-squat avoidance on PyPI) but
+:: the Python import is `graphify`. We check via the import name and
+:: install via the distribution name. Idempotent: re-runs are no-ops
+:: because the import check passes; a fresh machine gets a single install.
+::
+:: Edge case: pip's metadata can say "already satisfied" while the import
+:: fails (e.g. someone deleted the package directory manually, or a
+:: previous install was partially completed). To recover from this, the
+:: fallback uses --force-reinstall.
+echo [4a/5] Checking graphify Python package...
+"!PY!" -c "import graphify" >nul 2>&1
+if !errorlevel! equ 0 (
+    echo  [OK] graphify importable by !PY!
+) else (
+    echo  [INSTALL] graphify not importable; running pip install --user graphifyy
+    "!PY!" -m pip install --user graphifyy 2>&1 | findstr /V "already satisfied" | findstr /V "^$"
+    "!PY!" -c "import graphify" >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo  [FALLBACK] still not importable; trying pip install --user --force-reinstall graphifyy
+        "!PY!" -m pip install --user --force-reinstall graphifyy 2>&1 | findstr /V "already satisfied" | findstr /V "^$"
+        "!PY!" -c "import graphify" >nul 2>&1
+        if !errorlevel! neq 0 (
+            echo  [WARN] graphify install failed. The MCP config in your global
+            echo         opencode.jsonc references graphify, but the package is
+            echo         not importable. Run manually: pip install --user --force-reinstall graphifyy
+        ) else (
+            echo  [OK] graphify installed via --force-reinstall
+        )
+    ) else (
+        echo  [OK] graphify installed via pip install --user graphifyy
+    )
+)
+echo.
+
 if not exist "%MERGE_HELPER%" (
     echo  [ERROR] Merge helper not found: %MERGE_HELPER%
     pause

@@ -40,9 +40,24 @@ for /f "tokens=2" %%v in ('python --version 2^>^&1') do set "PY_VER=%%v"
 echo  Python %PY_VER%
 echo.
 
-:: ---- Step 2: Install Python dependencies ----
-echo [2/7] Installing Python dependencies...
-pip install graphify pytest jsonschema 2>&1 | findstr /V "already satisfied" | findstr /V "^$"
+:: ---- Step 2: Install Python dependencies (only if missing) ----
+:: Check each dependency via Python import. The pip distribution name for
+:: graphify is `graphifyy` (typo-squat avoidance on PyPI) but the import
+:: is `graphify`. We install only the missing ones; re-runs are a no-op.
+echo [2/7] Checking Python dependencies...
+set "MISSING_DEPS="
+python -c "import graphify" >nul 2>&1
+if %errorlevel% neq 0 set "MISSING_DEPS=!MISSING_DEPS! graphifyy"
+python -c "import pytest" >nul 2>&1
+if %errorlevel% neq 0 set "MISSING_DEPS=!MISSING_DEPS! pytest"
+python -c "import jsonschema" >nul 2>&1
+if %errorlevel% neq 0 set "MISSING_DEPS=!MISSING_DEPS! jsonschema"
+if "!MISSING_DEPS!"=="" (
+    echo  All dependencies already installed.
+) else (
+    echo  [INSTALL] missing:!MISSING_DEPS!
+    pip install !MISSING_DEPS! 2>&1 | findstr /V "already satisfied" | findstr /V "^$"
+)
 echo.
 
 :: ---- Step 3: Copy agent files into project ----
