@@ -220,6 +220,23 @@ def deep_merge(a: dict, b: dict) -> dict:
     return result
 
 
+def json_equal(a: Any, b: Any) -> bool:
+    """Deep equality check for JSON-like values, robust to dict ordering.
+
+    Implemented as ``json.dumps(..., sort_keys=True)`` on both sides. This
+    is sound for the JSON values opencode accepts (no NaN, no tuples, no
+    custom encoders) and avoids pulling in a deep-equal library. Two
+    sub-objects with the same keys and the same values in any order are
+    equal. Lists are order-sensitive (correct JSON semantics). Booleans
+    must not be confused with ints (Python's ``==`` handles this; we
+    delegate the comparison to ``json.dumps`` after the standard
+    serialization)."""
+
+    return json.dumps(a, sort_keys=True, ensure_ascii=False) == json.dumps(
+        b, sort_keys=True, ensure_ascii=False
+    )
+
+
 # ----------------------------------------------------------------------
 # Atomic write
 # ----------------------------------------------------------------------
@@ -489,6 +506,14 @@ def cmd_install(args: argparse.Namespace) -> int:
     if isinstance(project_agents, dict):
         for name, agent_def in project_agents.items():
             if name in agents and not args.force:
+                if json_equal(agents[name], agent_def):
+                    # Re-install on the same project: the global's
+                    # copy of this agent already matches the project's,
+                    # so this is a no-op. We don't add to agent_names
+                    # (no new contribution) and don't add to collisions
+                    # (no real conflict). The user can --force if they
+                    # want to re-run the deep-merge for some reason.
+                    continue
                 added["collisions"].append(name)
                 print(
                     f"[WARN] agent '{name}' already in global config — "
@@ -515,6 +540,10 @@ def cmd_install(args: argparse.Namespace) -> int:
     import copy as _copy  # local import keeps the stdlib-only top tidy
 
     # command.<name> — deep-merge into global_cfg["command"], track names.
+    # Only append to added["command_names"] for names the global did
+    # not already own — on a re-run this keeps the "commands added"
+    # count accurate. The manifest-merge step unions with prev_added
+    # so uninstall still sees the full set.
     project_command = project.get("command")
     if isinstance(project_command, dict) and project_command:
         existing = global_cfg.get("command")
@@ -527,8 +556,9 @@ def cmd_install(args: argparse.Namespace) -> int:
                 # install to clobber a perfectly good global config
                 # with bad input from the project side.
                 continue
+            if name not in existing:
+                added["command_names"].append(name)
             existing[name] = cmd_def
-            added["command_names"].append(name)
 
     # mcp.<name> — same pattern as command.
     project_mcp = project.get("mcp")
@@ -540,8 +570,9 @@ def cmd_install(args: argparse.Namespace) -> int:
         for name, mcp_def in project_mcp.items():
             if not isinstance(mcp_def, dict):
                 continue
+            if name not in existing:
+                added["mcp_names"].append(name)
             existing[name] = mcp_def
-            added["mcp_names"].append(name)
 
     # provider — recursive deep-merge; snapshot for restore-on-remove.
     # We only take a snapshot if the previous manifest did NOT already

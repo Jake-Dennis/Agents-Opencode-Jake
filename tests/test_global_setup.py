@@ -606,9 +606,15 @@ def test_idempotent_install(tmp_path):
 
 
 def test_manifest_preserves_agent_names_across_idempotent_reruns(tmp_path):
-    """Re-running install on a no-op (all collisions) MUST NOT clobber the
-    manifest's added.agent_names. Otherwise a later uninstall would leave
-    stale agents in the global config."""
+    """Re-running install on a no-op MUST NOT clobber the manifest's
+    added.agent_names. Otherwise a later uninstall would leave stale
+    agents in the global config.
+
+    On a re-install with the same project, the existing global copy of
+    each agent deep-equals the project copy, so it is treated as a
+    no-op: 0 added, 0 collisions. The manifest-merge step still unions
+    the new run's empty agent_names with prev_added, so the manifest
+    carries the cumulative 1 entry forward."""
     import json
     project = _project_file(
         tmp_path,
@@ -623,14 +629,69 @@ def test_manifest_preserves_agent_names_across_idempotent_reruns(tmp_path):
     m1 = json.loads(manifest.read_text())
     assert m1["added"]["agent_names"] == ["conductor"]
 
-    # Second install: collision (agent already in global), 0 added.
+    # Second install: existing global copy deep-equals project copy,
+    # so no-op. Manifest must STILL remember the original 1 addition
+    # so uninstall can later remove it.
     opencode_jsonc_merge.cmd_install(args)
     m2 = json.loads(manifest.read_text())
-    # Manifest must STILL remember the original 13 (here, 1) additions
-    # so uninstall can later remove them.
     assert m2["added"]["agent_names"] == ["conductor"]
-    assert len(m2["added"]["collisions"]) == 1
-    assert m2["added"]["collisions"][0] == "conductor"
+    assert m2["added"]["collisions"] == []
+
+
+def test_agent_collision_only_when_content_differs(tmp_path):
+    """A re-install on a no-op should NOT report a collision (the
+    existing global copy deep-equals the project copy, so there is
+    nothing to skip or warn about). A genuine user-customized agent
+    with the same name should still be reported as a collision."""
+    import json
+
+    def _make_project(parent: Path, prompt: str) -> Path:
+        parent.mkdir(exist_ok=True)
+        pf = parent / "opencode.json"
+        pf.write_text(
+            json.dumps(
+                {
+                    "default_agent": "conductor",
+                    "model": "opencode/x",
+                    "agent": {
+                        "conductor": {
+                            "description": "T",
+                            "mode": "primary",
+                            "prompt": prompt,
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        return pf
+
+    project1 = _make_project(tmp_path / "p1", "ORIG")
+    project2 = _make_project(tmp_path / "p2", "DIFFERENT")
+    g = _global_file(tmp_path)
+    manifest = _manifest_file(tmp_path)
+
+    # First install with project1.
+    opencode_jsonc_merge.cmd_install(_install_args(project1, g, manifest))
+    m1 = json.loads(manifest.read_text())
+    assert m1["added"]["agent_names"] == ["conductor"]
+    assert m1["added"]["collisions"] == []
+
+    # Re-install with project1: no-op (deep-equal).
+    opencode_jsonc_merge.cmd_install(_install_args(project1, g, manifest))
+    m2 = json.loads(manifest.read_text())
+    assert m2["added"]["agent_names"] == ["conductor"]
+    assert m2["added"]["collisions"] == []
+
+    # Install with project2 (different prompt): collision, no overwrite
+    # without --force.
+    opencode_jsonc_merge.cmd_install(_install_args(project2, g, manifest))
+    m3 = json.loads(manifest.read_text())
+    assert m3["added"]["agent_names"] == ["conductor"]  # no new addition
+    assert m3["added"]["collisions"] == ["conductor"]  # but flagged
+    # Global still has the project1 version.
+    g_cfg = opencode_jsonc_merge.load_jsonc(g)
+    assert g_cfg["agent"]["conductor"]["prompt"] == "ORIG"
 
 
 def test_manifest_unions_skills_paths_and_instructions_across_reruns(tmp_path):

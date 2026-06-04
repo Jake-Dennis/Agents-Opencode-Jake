@@ -85,7 +85,7 @@ if %AGENT_MD_COUNT% gtr 0 (
     echo         will merge into global config.
 ) else (
     echo  [ERROR] Nothing to install. Repo has no .opencode\agents\*.md files
-    echo          and no \"agent\": key in opencode.json.
+    echo          and no ^"agent^": key in opencode.json.
     pause
     exit /b 1
 )
