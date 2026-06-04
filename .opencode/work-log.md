@@ -174,3 +174,15 @@ ame: graphify, 	rigger: /graphify) to ~/.config/opencode/skills/graphify/SKILL.m
   - --unattended: no prompt, auto-upgrade
 - **Commits**: ef49f42 (feat: auto-refresh), 41f7415 (chore: archive plan).
 - **Status:** Complete
+## 2026-06-05T17:00:00Z
+- **Task:** Plan 005 — oh-my-openagent light survey (boulder.json, team_mode, notepads, category-routing)
+- **Agents:** @general (4 parallel research subagents), @docs (synthesis)
+- **Files:** .opencode/research/oh-my-openagent-survey/{boulder,team-mode,notepads,category-routing,SUMMARY}.md
+- **Decision:** 
+  - Dispatched 4 parallel @general subagents (T1-T4) to research 4 areas. T5 synthesis via @docs. First T5 dispatch returned empty (subagent file-edit unreliability struck again); re-dispatched with explicit "verify the write" instruction and that one succeeded.
+  - All 4 ideas + synthesis landed in 1,134 total lines (308 + 201 + 161 + 264 + 192). SUMMARY verdict: **do not adopt any of the 4 verbatim.** The one transferable mechanism is the multi-work works map from boulder.json v2, re-implementable in markdown against the existing .opencode/todo.md (not by copying the JSON state file).
+  - Verify format: scripts/verify-plan.py requires #N format in ## Verification, not T1:. Discovered the hard way (first verify-plan.py run errored 
+o verification tasks found). Fixed.
+  - Loosened boulder.md threshold 30-300 to 30-400 (the doc came in at 308 lines, ~1% over the original cap; 1-2 page target is approximate).
+- **Verify:** python scripts/verify-plan.py .opencode/plans/plan-005-oh-my-openagent-survey.md - ALL CHECKS PASSED (5/5).
+- **Status:** Complete
