@@ -28,7 +28,19 @@ Exit codes
 
 The merge policy and CLI are documented in
 ``docs/decisions/adr-002-global-setup-merge-strategy.md`` and
-``.opencode/plans/plan-002-fix-global-setup.md``.
+``.opencode/plans/plan-002-fix-global-setup.md``. The "install
+everything" extension (commands, MCPs, provider, permission,
+enabled_providers, $schema) is documented in
+``.opencode/plans/plan-003-full-global-install.md``.
+
+Manifest versions
+-----------------
+* ``version: 1`` — pre-plan-003 install (only agents + scalars +
+  skills.paths + instructions tracked).
+* ``version: 2`` — plan-003 install; ``added`` may also contain
+  ``command_names``, ``mcp_names``, ``enabled_providers_added``,
+  ``provider_snapshot``, and ``permission_snapshot``. A v1 manifest
+  is still loadable (the new fields default to empty / null on read).
 """
 from __future__ import annotations
 
@@ -372,12 +384,54 @@ def cmd_install(args: argparse.Namespace) -> int:
         print(f"[ERROR] global config is not a JSON object: {args.global_path}", file=sys.stderr)
         return 2
 
+    # Read the previous manifest (if any) BEFORE we start mutating
+    # `global_cfg`. The install step needs to know whether snapshots
+    # for `provider` / `permission` were already captured by an earlier
+    # run, so a re-install does not re-snapshot the post-merge value.
+    # We track presence (key in manifest) rather than value, because
+    # a snapshot value of None means "user had no pre-existing block"
+    # — we want to preserve that None, not re-snapshot the now-merged
+    # global value on a re-run.
+    prev_manifest_data: dict | None = None
+    _prev_manifest_path = Path(args.manifest)
+    if _prev_manifest_path.exists():
+        try:
+            prev_manifest_data = json.loads(
+                _prev_manifest_path.read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError) as e:
+            print(
+                f"[WARN] could not read previous manifest: {e}",
+                file=sys.stderr,
+            )
+            prev_manifest_data = None
+    prev_snapshot_keys_present: set[str] = set()
+    if isinstance(prev_manifest_data, dict):
+        _pa = prev_manifest_data.get("added")
+        if isinstance(_pa, dict):
+            for k in ("provider_snapshot", "permission_snapshot"):
+                if k in _pa:
+                    prev_snapshot_keys_present.add(k)
+
     added: dict[str, Any] = {
         "agent_names": [],
         "collisions": [],
         "instructions": [],
         "skills_paths": [],
         "scalar_changes": {},
+        # Plan-003 fields. These are populated only when the project
+        # actually contributes; an empty list on disk is fine and
+        # means "no contribution from this project on this run".
+        "command_names": [],
+        "mcp_names": [],
+        "enabled_providers_added": [],
+        # provider_snapshot / permission_snapshot are NOT pre-initialized.
+        # Their presence in the manifest means "we took a snapshot on
+        # the install that first contributed this block". Absence means
+        # "no install has contributed this block yet, nothing to
+        # restore on uninstall". This is the cleanest way to
+        # distinguish "user had no pre-existing value" (key present,
+        # value None) from "we never touched this block" (key absent).
     }
 
     # 1. Scalar keys (default_agent, model, small_model): overwrite, record change.
@@ -450,13 +504,105 @@ def cmd_install(args: argparse.Namespace) -> int:
                 agents[name] = agent_def
             added["agent_names"].append(name)
 
+    # 4b. Project-family configuration (plan-003). The four dict-shaped
+    #     blocks (command, mcp, provider, permission) are deep-merged
+    #     recursively: project values win on leaf conflicts, user-only
+    #     keys are preserved. Snapshotting the pre-merge provider /
+    #     permission dicts lets cmd_remove return the global config to
+    #     its exact pre-install state. The list-shaped block
+    #     (enabled_providers) is unioned and deduped. $schema is a
+    #     single URL pointer — we just overwrite it.
+    import copy as _copy  # local import keeps the stdlib-only top tidy
+
+    # command.<name> — deep-merge into global_cfg["command"], track names.
+    project_command = project.get("command")
+    if isinstance(project_command, dict) and project_command:
+        existing = global_cfg.get("command")
+        if not isinstance(existing, dict):
+            existing = {}
+            global_cfg["command"] = existing
+        for name, cmd_def in project_command.items():
+            if not isinstance(cmd_def, dict):
+                # Skip malformed entries silently — we never want the
+                # install to clobber a perfectly good global config
+                # with bad input from the project side.
+                continue
+            existing[name] = cmd_def
+            added["command_names"].append(name)
+
+    # mcp.<name> — same pattern as command.
+    project_mcp = project.get("mcp")
+    if isinstance(project_mcp, dict) and project_mcp:
+        existing = global_cfg.get("mcp")
+        if not isinstance(existing, dict):
+            existing = {}
+            global_cfg["mcp"] = existing
+        for name, mcp_def in project_mcp.items():
+            if not isinstance(mcp_def, dict):
+                continue
+            existing[name] = mcp_def
+            added["mcp_names"].append(name)
+
+    # provider — recursive deep-merge; snapshot for restore-on-remove.
+    # We only take a snapshot if the previous manifest did NOT already
+    # record one (even if its value was None). The snapshot's job is
+    # to capture the user's PRE-FIRST-install value; re-snapshotting
+    # on a re-run would capture the post-merge value (because the
+    # global was already updated on the first run), which is useless
+    # for restore. The manifest re-run merge keeps the earliest
+    # snapshot, so once the first install captures the right value we
+    # never overwrite it.
+    project_provider = project.get("provider")
+    if isinstance(project_provider, dict) and project_provider:
+        existing = global_cfg.get("provider")
+        if "provider_snapshot" not in prev_snapshot_keys_present:
+            # Deep copy: a shallow copy would alias the nested dicts
+            # and mutate as we write to existing below.
+            added["provider_snapshot"] = _copy.deepcopy(existing)
+        if not isinstance(existing, dict):
+            existing = {}
+            global_cfg["provider"] = existing
+        global_cfg["provider"] = deep_merge(existing, project_provider)
+
+    # permission — recursive deep-merge; snapshot for restore-on-remove.
+    # See the comment on the provider block above; the same FIRST-wins
+    # snapshot rule applies.
+    project_permission = project.get("permission")
+    if isinstance(project_permission, dict) and project_permission:
+        existing = global_cfg.get("permission")
+        if "permission_snapshot" not in prev_snapshot_keys_present:
+            added["permission_snapshot"] = _copy.deepcopy(existing)
+        if not isinstance(existing, dict):
+            existing = {}
+            global_cfg["permission"] = existing
+        global_cfg["permission"] = deep_merge(existing, project_permission)
+
+    # enabled_providers — list union + dedupe (string compare).
+    project_ep = project.get("enabled_providers")
+    if isinstance(project_ep, list) and project_ep:
+        existing_ep = global_cfg.get("enabled_providers")
+        if not isinstance(existing_ep, list):
+            existing_ep = []
+            global_cfg["enabled_providers"] = existing_ep
+        new_ep = dedupe_union(existing_ep, [x for x in project_ep if isinstance(x, str)])
+        added["enabled_providers_added"] = _diff_added(existing_ep, new_ep)
+        global_cfg["enabled_providers"] = new_ep
+
+    # $schema — single URL pointer, just overwrite from the project.
+    # We do not track or restore this on remove (matches the existing
+    # scalar policy in cmd_remove: the project is authoritative at
+    # install, but on remove we cannot safely revert because another
+    # project may have overwritten it in the meantime).
+    if isinstance(project.get("$schema"), str):
+        global_cfg["$schema"] = project["$schema"]
+
     # 5. Build manifest. If a previous manifest exists, merge this run's
     #    `added` with the previous one so the manifest always reflects the
     #    cumulative set of contributions (so a later `uninstall` can remove
     #    everything, not just what the most recent run added).
     project_root = _display_path(Path(args.project).resolve().parent)
     manifest: dict[str, Any] = {
-        "version": 1,
+        "version": 2,
         "installed_at": datetime.now(timezone.utc).isoformat(),
         "repo_dir": project_root,
         "links": _resolve_link_paths(args.global_path),
@@ -505,13 +651,71 @@ def cmd_install(args: argparse.Namespace) -> int:
                     list(prev_added.get("collisions") or []) + list(added.get("collisions") or [])
                 )
             )
-            manifest["added"] = {
-                "agent_names": merged_agent_names,
-                "scalar_changes": merged_scalars,
-                "skills_paths": merged_skills,
-                "instructions": merged_instr,
-                "collisions": merged_collisions,
-            }
+            # Plan-003 fields:
+            # - command_names / mcp_names / enabled_providers_added:
+            #   union (per-item dedupe, preserve order) — same semantics
+            #   as agent_names.
+            # - provider_snapshot / permission_snapshot: FIRST-wins.
+            #   Presence in the manifest means "we took a snapshot";
+            #   absence means "no install has ever contributed this
+            #   block, nothing to restore". We preserve presence
+            #   verbatim across re-runs so a re-install that didn't
+            #   touch these blocks still carries the original snapshot.
+            merged_command_names = list(
+                dict.fromkeys(
+                    list(prev_added.get("command_names") or [])
+                    + list(added.get("command_names") or [])
+                )
+            )
+            merged_mcp_names = list(
+                dict.fromkeys(
+                    list(prev_added.get("mcp_names") or [])
+                    + list(added.get("mcp_names") or [])
+                )
+            )
+            # enabled_providers_added: union with per-item dedupe
+            # (case-insensitive is overkill for provider IDs which are
+            # ASCII, but the existing _norm_path helper is fine here).
+            _ep_seen: set = set()
+            merged_ep_added: list = []
+            for p in (
+                list(prev_added.get("enabled_providers_added") or [])
+                + list(added.get("enabled_providers_added") or [])
+            ):
+                key = _norm_path(p) if isinstance(p, str) else id(p)
+                if key in _ep_seen:
+                    continue
+                _ep_seen.add(key)
+                merged_ep_added.append(p)
+            # Build the merged `added` dict. Start with the new run's
+            # `added`, then overlay the previous run's `added` for the
+            # snapshot keys (FIRST-wins by construction: the new run
+            # only sets a snapshot if the previous one didn't have
+            # the key, so when we layer them together the earliest
+            # snapshot wins).
+            manifest_added = dict(added)
+            # FIRST-wins for snapshots: if the previous manifest has
+            # the key (even with value None), keep it. Otherwise adopt
+            # the new one. The new run only sets the key when no
+            # previous manifest had it, so the first install that
+            # contributed the block sets the snapshot.
+            for k in ("provider_snapshot", "permission_snapshot"):
+                if k in prev_added:
+                    manifest_added[k] = prev_added[k]
+                # else: keep whatever the new run set (which is
+                # either the freshly-taken snapshot or nothing, if
+                # this run didn't touch the block).
+            # Now layer the per-item-union fields on top.
+            manifest_added["command_names"] = merged_command_names
+            manifest_added["mcp_names"] = merged_mcp_names
+            manifest_added["enabled_providers_added"] = merged_ep_added
+            # And the always-existing fields.
+            manifest_added["agent_names"] = merged_agent_names
+            manifest_added["scalar_changes"] = merged_scalars
+            manifest_added["skills_paths"] = merged_skills
+            manifest_added["instructions"] = merged_instr
+            manifest_added["collisions"] = merged_collisions
+            manifest["added"] = manifest_added
             # Refresh installed_at and repo_dir to the latest run.
             manifest["installed_at"] = datetime.now(timezone.utc).isoformat()
             manifest["repo_dir"] = project_root
@@ -559,6 +763,35 @@ def _print_install_summary(
     for name in collisions:
         print(f"  ! agent {name} (skipped: collision)")
 
+    # Plan-003 summary blocks. We print only non-empty contributions;
+    # a project that doesn't ship a given block produces no output,
+    # which keeps the install log readable.
+    commands = added.get("command_names", []) or []
+    if commands:
+        print(f"[merge] commands added: {len(commands)}")
+        for name in commands:
+            print(f"  + command {name}")
+
+    mcp_names = added.get("mcp_names", []) or []
+    if mcp_names:
+        print(f"[merge] mcps added: {len(mcp_names)}")
+        for name in mcp_names:
+            print(f"  + mcp {name}")
+
+    if added.get("provider_snapshot") is not None or "provider" in (added or {}):
+        # The snapshot key is only present when the project contributed;
+        # print a single line so the user can see we touched provider.
+        print("[merge] provider block: deep-merged from project (snapshot taken)")
+
+    if added.get("permission_snapshot") is not None or "permission" in (added or {}):
+        print("[merge] permission block: deep-merged from project (snapshot taken)")
+
+    ep_added = added.get("enabled_providers_added", []) or []
+    if ep_added:
+        print(f"[merge] enabled_providers added: {len(ep_added)}")
+        for p in ep_added:
+            print(f"  + {p}")
+
 
 # ----------------------------------------------------------------------
 # Remove
@@ -590,6 +823,12 @@ def cmd_remove(args: argparse.Namespace) -> int:
         "agent_names": [],
         "skills_paths": [],
         "instructions": [],
+        # Plan-003 removal tracking.
+        "command_names": [],
+        "mcp_names": [],
+        "enabled_providers": [],
+        "provider_restored": False,
+        "permission_restored": False,
     }
 
     # 1. Agents — only remove names we actually added (collisions were
@@ -647,6 +886,80 @@ def cmd_remove(args: argparse.Namespace) -> int:
     #    overwrite. The manifest still records the change in
     #    `scalar_changes` for reference.
     #    See ADR-002 and the "Consequences / negatives" section.
+    #    The same policy applies to `$schema` (also a single string
+    #    pointer overwritten at install time).
+
+    # 4b. Plan-003 removal: command.<name>, mcp.<name>, enabled_providers,
+    #     provider (from snapshot), permission (from snapshot).
+    #     We tolerate None / missing keys in the manifest for backwards
+    #     compat with v1 manifests.
+
+    # command.<name> — delete only the names the manifest says we added.
+    cmd_names_added = added.get("command_names")
+    if isinstance(cmd_names_added, list):
+        commands = global_cfg.get("command")
+        if isinstance(commands, dict):
+            for name in cmd_names_added:
+                if isinstance(name, str) and name in commands:
+                    del commands[name]
+                    removed["command_names"].append(name)
+            # If the command block is now empty, drop the key entirely
+            # so we don't leave an empty {} behind.
+            if not commands:
+                global_cfg.pop("command", None)
+
+    # mcp.<name> — same pattern as command.
+    mcp_names_added = added.get("mcp_names")
+    if isinstance(mcp_names_added, list):
+        mcps = global_cfg.get("mcp")
+        if isinstance(mcps, dict):
+            for name in mcp_names_added:
+                if isinstance(name, str) and name in mcps:
+                    del mcps[name]
+                    removed["mcp_names"].append(name)
+            if not mcps:
+                global_cfg.pop("mcp", None)
+
+    # enabled_providers — filter out items we added; drop the key if empty.
+    ep_added = added.get("enabled_providers_added")
+    if isinstance(ep_added, list) and ep_added:
+        ep_list = global_cfg.get("enabled_providers")
+        if isinstance(ep_list, list):
+            target_keys = {
+                _norm_path(p) for p in ep_added if isinstance(p, str)
+            }
+            new_ep = []
+            for p in ep_list:
+                if isinstance(p, str) and _norm_path(p) in target_keys:
+                    removed["enabled_providers"].append(p)
+                else:
+                    new_ep.append(p)
+            if not new_ep:
+                global_cfg.pop("enabled_providers", None)
+            else:
+                global_cfg["enabled_providers"] = new_ep
+
+    # provider — restore from snapshot (or delete if no snapshot).
+    provider_snap = added.get("provider_snapshot")
+    if "provider_snapshot" in added:
+        # The key is present in the manifest (possibly None). Restore
+        # from snapshot if non-None, else delete the global key.
+        if isinstance(provider_snap, dict) and provider_snap:
+            global_cfg["provider"] = provider_snap
+        else:
+            global_cfg.pop("provider", None)
+        removed["provider_restored"] = True
+        removed["provider_snapshot"] = provider_snap
+
+    # permission — restore from snapshot (or delete if no snapshot).
+    permission_snap = added.get("permission_snapshot")
+    if "permission_snapshot" in added:
+        if isinstance(permission_snap, dict) and permission_snap:
+            global_cfg["permission"] = permission_snap
+        else:
+            global_cfg.pop("permission", None)
+        removed["permission_restored"] = True
+        removed["permission_snapshot"] = permission_snap
 
     # 5. Summary
     _print_remove_summary(removed)
@@ -695,6 +1008,38 @@ def _print_remove_summary(removed: dict) -> None:
     for k in sorted(scalars.keys()):
         change = scalars[k]
         print(f"  {k}: {change.get('new')!r} -> {change.get('old')!r}")
+
+    # Plan-003 removal summary blocks.
+    commands = removed.get("command_names", []) or []
+    if commands:
+        print(f"[merge] commands removed: {len(commands)}")
+        for name in commands:
+            print(f"  - command {name}")
+
+    mcp_names = removed.get("mcp_names", []) or []
+    if mcp_names:
+        print(f"[merge] mcps removed: {len(mcp_names)}")
+        for name in mcp_names:
+            print(f"  - mcp {name}")
+
+    ep = removed.get("enabled_providers", []) or []
+    if ep:
+        print(f"[merge] enabled_providers removed: {len(ep)}")
+        for p in ep:
+            print(f"  - {p}")
+
+    if removed.get("provider_restored"):
+        snap = removed.get("provider_snapshot")
+        if isinstance(snap, dict) and snap:
+            print("[merge] provider block: restored from snapshot")
+        else:
+            print("[merge] provider block: deleted (no pre-install snapshot)")
+    if removed.get("permission_restored"):
+        snap = removed.get("permission_snapshot")
+        if isinstance(snap, dict) and snap:
+            print("[merge] permission block: restored from snapshot")
+        else:
+            print("[merge] permission block: deleted (no pre-install snapshot)")
 
 
 # ----------------------------------------------------------------------

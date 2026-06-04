@@ -1,6 +1,9 @@
 # ADR-002: Global installer uses JSONC merge, not folder symlinks
 
-- **Status:** Accepted
+- **Status:** Accepted (with the plan-003 extension to merge
+  `command`/`mcp`/`provider`/`permission`/`enabled_providers`/`$schema`
+  as well; see "Updated per-key policy" below and
+  `.opencode/plans/plan-003-full-global-install.md` for the full design.)
 - **Date:** 2026-06-04
 - **Deciders:** Jake Dennis (conductor session), @builder (implementation)
 - **Supersedes:** the "merge all agents into `~/.config/opencode/agents/`" strategy
@@ -67,15 +70,50 @@ The global installer is split into two cooperating pieces:
 ### Per-key merge policy
 
 The helper applies this policy deterministically (table is the contract;
-no inference, no surprises):
+no inference, no surprises). Plan-003 (2026-06-04) extended the original
+table to merge *all* the project's top-level keys, not just
+`agent`/`skills`/`instructions`/scalars — the goal being "install
+everything the project ships" so a `global-setup.bat` run makes the
+project family fully available globally.
 
-| Key | Strategy | On collision |
-|---|---|---|
-| `default_agent`, `model`, `small_model` | overwrite | silently wins (project is authoritative) |
-| `skills.paths` | union + dedupe, case-insensitive | both kept |
-| `instructions` | union + dedupe, case-insensitive | both kept |
-| `agent.<name>` | deep-merge; warn + skip on collision | `--force` to overwrite |
-| `$schema`, `enabled_providers`, `provider`, `mcp`, `command`, `permission` | never touch | preserved as-is |
+| Key | Install strategy | Uninstall strategy | Manifest tracking |
+|---|---|---|---|
+| `default_agent`, `model`, `small_model` | overwrite (project is authoritative) | DO NOT restore | `scalar_changes` |
+| `$schema` | overwrite (project's schema URL) | DO NOT restore | none — single URL pointer |
+| `skills.paths` | union + dedupe, case-insensitive | drop only entries we added | `skills_paths` |
+| `instructions` | union + dedupe + auto-add repo `AGENTS.md` | drop only entries we added | `instructions` |
+| `agent.<name>` | deep-merge; warn + skip on collision; `--force` to overwrite | delete only names we added | `agent_names` + `collisions` |
+| `command.<name>` | deep-merge into `command`; project wins on per-name conflict | delete only names we added | `command_names: [string]` |
+| `mcp.<name>` | deep-merge into `mcp`; project wins on per-name conflict | delete only names we added | `mcp_names: [string]` |
+| `provider` | recursive deep-merge (top-level) | restore from snapshot | `provider_snapshot: object \| null` |
+| `permission` | recursive deep-merge (top-level) | restore from snapshot | `permission_snapshot: object \| null` |
+| `enabled_providers` | list union + dedupe | filter out items we added | `enabled_providers_added: [string]` |
+
+**Why snapshot+restore for `provider` / `permission` but not the
+scalars?** The scalars are single values; if a different project
+overwrites them between installs, we cannot safely revert. The dicts
+are bigger and a partial overwrite is more likely to leave the global
+config in a broken state. Snapshotting the pre-install value lets us
+return the global config to its exact pre-install state on uninstall.
+Snapshots are deep-copied at install time, so a user's later manual
+edits to those keys will not contaminate the snapshot (the snapshot is
+taken *before* the deep-merge writes to `global_cfg`).
+
+**FIRST-wins for snapshots on re-runs.** If `global-setup.bat` is run
+twice, the second run's snapshot of `provider` would capture the
+post-first-install value (which is the deep-merge result). We want the
+*pre-FIRST-install* value as the snapshot, so on a later uninstall we
+restore the user's original config. The manifest-merge logic for
+re-runs therefore keeps the first run's snapshot and ignores
+subsequent snapshots for the same key.
+
+**No collision warnings for `command`/`mcp`/`provider`/`permission`.**
+Unlike `agent.<name>`, these are not "registered subagents" — they
+are project-family configuration. The project is authoritative for
+project-family values. If the user has customized `command.setup-project`,
+the project's value overwrites it silently on install (project wins
+on deep-merge conflict). The user can `uninstall-global.bat` to revert,
+or edit the global jsonc by hand to keep their custom version.
 
 Two implicit additions to the union+dedupe lists make the install actually
 *work*:
@@ -94,7 +132,7 @@ A successful install writes a manifest at
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "installed_at": "<iso-8601 utc>",
   "repo_dir": "<abs path to repo root>",
   "links": {
@@ -102,17 +140,26 @@ A successful install writes a manifest at
     "skill_junction": "<abs path to junction>"
   },
   "added": {
-    "agent_names":   ["conductor", "planner", ...],
-    "collisions":    ["user_custom"],
-    "instructions":  ["C:\\...\\AGENTS.md"],
-    "skills_paths":  ["C:\\...\\.config\\opencode\\skills"],
-    "scalar_changes": {
+    "agent_names":      ["conductor", "planner", ...],
+    "collisions":       ["user_custom"],
+    "instructions":     ["C:\\...\\AGENTS.md"],
+    "skills_paths":     ["C:\\...\\.config\\opencode\\skills"],
+    "scalar_changes":   {
       "default_agent": {"old": null, "new": "conductor"},
       "model":         {"old": null, "new": "opencode/minimax-m3-free"}
-    }
+    },
+    "command_names":          ["setup-project", "build"],
+    "mcp_names":              ["graphify"],
+    "enabled_providers_added": ["opencode"],
+    "provider_snapshot":      { ... pre-install global_cfg["provider"] ... } | null,
+    "permission_snapshot":    { ... pre-install global_cfg["permission"] ... } | null
   }
 }
 ```
+
+A `version: 1` manifest (pre-plan-003) is still loadable; the
+plan-003 fields default to empty / null on read, and uninstall
+silently no-ops on the missing fields.
 
 Uninstall loads the manifest, removes exactly the agents we added (the
 `collisions` list is left alone — those agents were never ours), and
@@ -193,6 +240,10 @@ file" option from the old uninstaller is gone for good.
   project's contribution. The user has to edit
   `default_agent`/`model`/`small_model` by hand if they want to undo the
   install-time overwrite.
+* **Manifest grew slightly with plan-003.** Adding the snapshot fields
+  for `provider` and `permission` makes the manifest a few hundred bytes
+  larger per install. Acceptable trade-off for the safety net on
+  uninstall.
 
 ### Reversibility
 
@@ -271,6 +322,10 @@ opencode read it via a project-relative `OPENCODE_CONFIG` env var.
 * `global-setup.bat`, `uninstall-global.bat` — the thin orchestrators.
 * `.opencode/plans/plan-002-fix-global-setup.md` — the plan that
   diagnosed the three failure modes and proposed the split.
+* `.opencode/plans/plan-003-full-global-install.md` — the plan that
+  extended the merge helper to install `command`/`mcp`/`provider`/
+  `permission`/`enabled_providers`/`$schema` and added snapshot-restore
+  for `provider` and `permission`.
 * `.opencode/decisions/adr-001-json-only-agents.md` — the prior
   decision that this ADR builds on (single source of truth in
   `opencode.json`).

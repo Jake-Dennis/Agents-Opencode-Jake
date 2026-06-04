@@ -42,11 +42,33 @@ opencode .
 
 ### Global install
 
-`global-setup.bat` installs the agents into `%USERPROFILE%\.config\opencode\opencode.jsonc` (idempotent merge) and symlinks the `graphify-agent-workflow` skill — available to all opencode projects on the machine.
+`global-setup.bat` installs the *entire* project family into
+`%USERPROFILE%\.config\opencode\opencode.jsonc` (idempotent merge) and
+symlinks the `graphify-agent-workflow` skill — available to all opencode
+projects on the machine. The merge covers every top-level key the
+project ships:
+
+- 13 agents (`agent.<name>`)
+- 3 scalars (`default_agent`, `model`, `small_model`)
+- `skills.paths` (union + dedupe)
+- `instructions` (union + dedupe, plus the repo's `AGENTS.md`)
+- `command` (slash commands like `/setup-project`, `/build`)
+- `mcp` (graphify MCP server)
+- `provider` + `enabled_providers` (project's AI provider config)
+- `permission` (project's permission policy)
+- `$schema` (the schema URL pointer)
+
+The installer writes a manifest at
+`%USERPROFILE%\.config\opencode\.opencode-jake-installed.json` so the
+uninstaller can surgically remove every contribution and restore the
+user's pre-install values for `provider` and `permission` from a
+snapshot. See
+[.opencode/plans/plan-003-full-global-install.md](.opencode/plans/plan-003-full-global-install.md)
+for the full per-key policy.
 
 Non-interactive: `global-setup.bat --unattended` or `set GLOBAL_SETUP_YES=1 && global-setup.bat`. Also supports `--dry-run` and `--force`.
 
-Verify: `opencode agent list` should show all 13 agents. Undo: `uninstall-global.bat --unattended` (uses the install manifest for clean removal, preserves your other config).
+Verify: `opencode agent list` should show all 13 agents and `/help` should list `/setup-project` and `/build`. Undo: `uninstall-global.bat --unattended` (uses the install manifest for clean removal, preserves your other config).
 
 ### Option — copy `opencode.json` only
 

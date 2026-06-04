@@ -18,7 +18,19 @@ The `setup.bat` (local only — no global side effects):
 
 ## Global install (all projects on this machine)
 
-If you want the agents available to every opencode project, run `global-setup.bat` from the cloned repo. It **merges** the project's `opencode.json` (agent block, `default_agent`, `model`, `skills.paths`, `instructions`) into `%USERPROFILE%\.config\opencode\opencode.jsonc` — idempotently — and **symlinks** the `graphify-agent-workflow` skill. The installer writes a manifest at `%USERPROFILE%\.config\opencode\.opencode-jake-installed.json` so `uninstall-global.bat` can surgically remove the merged keys without touching your other config.
+If you want the agents available to every opencode project, run `global-setup.bat` from the cloned repo. It **merges** the *entire* project's `opencode.json` into `%USERPROFILE%\.config\opencode\opencode.jsonc` — idempotently — and **symlinks** the `graphify-agent-workflow` skill. The merge covers:
+
+- 13 agents (`agent.<name>`)
+- 3 scalars (`default_agent`, `model`, `small_model`)
+- `skills.paths` (union + dedupe)
+- `instructions` (union + dedupe, plus the repo's `AGENTS.md`)
+- `command` (slash commands — `/setup-project`, `/build`)
+- `mcp` (graphify MCP server)
+- `provider` + `enabled_providers` (AI provider config)
+- `permission` (the project family's permission policy)
+- `$schema` (the schema URL pointer)
+
+The installer writes a manifest at `%USERPROFILE%\.config\opencode\.opencode-jake-installed.json` so `uninstall-global.bat` can surgically remove every contribution and restore your pre-install `provider` / `permission` values from a snapshot.
 
 Flags: `--unattended`, `--dry-run`, `--force` (env vars: `GLOBAL_SETUP_YES=1`, `GLOBAL_SETUP_DRY_RUN=1`, `GLOBAL_SETUP_FORCE=1`).
 
