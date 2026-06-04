@@ -181,9 +181,15 @@ for step, keywords in workflow_assertions.items():
         check(kw.lower() in conductor_prompt.lower(),
               f"conductor workflow step '{step}' references '{kw}'")
 
-section("7. SETUP.BAT FUNCTIONAL VERIFICATION")
+section("7. GLOBAL-SETUP.BAT FUNCTIONAL VERIFICATION")
 
-setup = (REPO / "setup.bat").read_text()
+# This block verifies the GLOBAL installer (global-setup.bat) — it is the
+# file that touches the user's %USERPROFILE%\.config\opencode, creates
+# junctions, and triggers the JSONC merge via opencode_jsonc_merge.py.
+# Earlier revisions of this assertion block misread setup.bat (the
+# per-project installer) and asserted global-setup-specific strings on
+# the wrong file. Plan-002 Layer 3 task #8 fixed that mislabeling.
+gsetup = (REPO / "global-setup.bat").read_text()
 setup_assertions = {
     "config dir creation": "%USERPROFILE%\\.config\\opencode",
     "agents target": "agents",
@@ -191,18 +197,16 @@ setup_assertions = {
     "symlink command": "mklink",
     "junktion (no-admin)": "/J",
     "config write": "opencode.jsonc",
-    "minimax mention": "minimax-m3-free" not in setup or "big-pickle" in setup or True,  # optional
-    "agent count check": True,  # just exists
 }
 for desc, key in setup_assertions.items():
     if isinstance(key, str):
-        check(key in setup, f"setup.bat has: {desc} ('{key[:30]}')")
+        check(key in gsetup, f"global-setup.bat has: {desc} ('{key[:30]}')")
     else:
-        check(key, f"setup.bat: {desc}")
+        check(key, f"global-setup.bat: {desc}")
 
-# Verify setup.bat uses config-driven paths (not hardcoded)
-check("%USERPROFILE%" in setup, "setup.bat uses %USERPROFILE% (portable)")
-check("%~dp0" in setup, "setup.bat uses %~dp0 (script-relative)")
+# Verify global-setup.bat uses config-driven paths (not hardcoded)
+check("%USERPROFILE%" in gsetup, "global-setup.bat uses %USERPROFILE% (portable)")
+check("%~dp0" in gsetup, "global-setup.bat uses %~dp0 (script-relative)")
 
 section("8. KNOWLEDGE GRAPH FLOW")
 

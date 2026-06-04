@@ -172,6 +172,19 @@ check(len(md_files) == 0, f"0 agent .md files (JSON is source of truth) (got {le
 check(len(cfg["agent"]) == 13, f"13 agent entries in opencode.json (got {len(cfg['agent'])})")
 check(len(cfg["command"]) == 2, f"2 custom commands (got {len(cfg['command'])})")
 
+# 14. Global install helper exists and parses
+print("\n[14] Global install helper")
+helper = REPO / ".opencode/scripts/opencode_jsonc_merge.py"
+check(helper.exists(), "opencode_jsonc_merge.py exists")
+try:
+    import ast
+    ast.parse(helper.read_text(encoding="utf-8"))
+    passed.append("opencode_jsonc_merge.py parses")
+    print("  PASS: opencode_jsonc_merge.py parses")
+except SyntaxError as e:
+    errors.append(f"opencode_jsonc_merge.py syntax error: {e}")
+    print(f"  FAIL: {e}")
+
 # Summary
 print("\n" + "=" * 60)
 print(f"PASSED: {len(passed)}")

@@ -35,9 +35,18 @@ opencode .
 
 | Script | Purpose |
 |--------|---------|
-| `global-setup.bat` | Install agents globally for ALL projects |
+| `setup.bat` | Install agents locally for this project |
 | `uninstall.bat` | Remove local setup |
-| `uninstall-global.bat` | Remove global setup |
+| `global-setup.bat` | Install agents globally — merges `opencode.json` into `%USERPROFILE%\.config\opencode\opencode.jsonc`, symlinks the skill. Supports `--unattended`, `--dry-run`, `--force`. |
+| `uninstall-global.bat` | Surgically remove global install (uses install manifest). Supports `--unattended`, `--dry-run`. |
+
+### Global install
+
+`global-setup.bat` installs the agents into `%USERPROFILE%\.config\opencode\opencode.jsonc` (idempotent merge) and symlinks the `graphify-agent-workflow` skill — available to all opencode projects on the machine.
+
+Non-interactive: `global-setup.bat --unattended` or `set GLOBAL_SETUP_YES=1 && global-setup.bat`. Also supports `--dry-run` and `--force`.
+
+Verify: `opencode agent list` should show all 13 agents. Undo: `uninstall-global.bat --unattended` (uses the install manifest for clean removal, preserves your other config).
 
 ### Option — copy `opencode.json` only
 

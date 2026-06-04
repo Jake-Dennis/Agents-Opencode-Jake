@@ -5,15 +5,31 @@
 ```powershell
 # In your project root
 git clone https://github.com/JakeP/Agents-Opencode-Jake.git
-# Run the installer (creates symlinks to the global opencode config)
+# Run the local installer
 .\Agents-Opencode-Jake\setup.bat
 ```
 
-The `setup.bat`:
-- Creates `%USERPROFILE%\.config\opencode\` if missing
-- Symlinks this `opencode.json` into the global config (so all projects share the agents)
-- Creates a `.opencode\` structure in your project
+The `setup.bat` (local only — no global side effects):
+- Copies `AGENTS.md` and the `graphify-agent-workflow` skill into the project
+- Merges the 13-agent `opencode.json` into the project's own `opencode.json`
+- Creates `.opencode\` structure (plans, decisions, todo, work-log)
+- Initializes git, writes a `.gitignore`, installs the pre-commit hook
 - Runs `/graphify .` to build the knowledge graph
+
+## Global install (all projects on this machine)
+
+If you want the agents available to every opencode project, run `global-setup.bat` from the cloned repo. It **merges** the project's `opencode.json` (agent block, `default_agent`, `model`, `skills.paths`, `instructions`) into `%USERPROFILE%\.config\opencode\opencode.jsonc` — idempotently — and **symlinks** the `graphify-agent-workflow` skill. The installer writes a manifest at `%USERPROFILE%\.config\opencode\.opencode-jake-installed.json` so `uninstall-global.bat` can surgically remove the merged keys without touching your other config.
+
+Flags: `--unattended`, `--dry-run`, `--force` (env vars: `GLOBAL_SETUP_YES=1`, `GLOBAL_SETUP_DRY_RUN=1`, `GLOBAL_SETUP_FORCE=1`).
+
+```powershell
+# Non-interactive (skip the y/N prompt):
+echo y | .\Agents-Opencode-Jake\global-setup.bat --unattended
+set GLOBAL_SETUP_YES=1 && .\Agents-Opencode-Jake\global-setup.bat
+:: Verify, then undo if needed:
+opencode agent list
+.\Agents-Opencode-Jake\uninstall-global.bat --unattended
+```
 
 ## Option B — copy `opencode.json` only
 
