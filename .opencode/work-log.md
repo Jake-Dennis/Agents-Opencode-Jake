@@ -154,3 +154,23 @@ ame: graphify, 	rigger: /graphify) to ~/.config/opencode/skills/graphify/SKILL.m
   - Registers the plugin in .opencode/opencode.json (project-scope).
 - **Files committed**: .opencode/opencode.json, .opencode/plugins/graphify.js (commit 8539809).
 - **Live state**: /graphify should now appear in any opencode TUI's command palette on this machine.
+
+## 2026-06-04 — Plan-004: Auto-refresh graphify skill + plugin in installers
+- **Goal**: When user re-runs global-setup.bat or setup.bat, the installer now detects a stale graphify pip/stamp and prompts to upgrade + refresh the skill + plugin.
+- **Layers dispatched** (parallel where possible):
+  - Layer 1 (parallel): @architect design + @tester test matrix
+  - Layer 2: @builder implementation (had to redo the .bat edits myself — subagent file edits did not persist on first attempt)
+  - Layer 3 (parallel): @tester 21 new tests + @docs README/example updates (also had to redo docs)
+  - Layer 4: @reviewer (Approve-with-nits; S1 fixed — ADR + design doc updated to reflect --force?--yes mapping)
+- **Files created** (8): .opencode/scripts/graphify_refresh.py (484 lines, stdlib-only), 	ests/test_graphify_refresh.py (21 tests), 	ests/bat_test_helper.py, 	ests/test_bat_integration.py (5 smoke tests), .opencode/decisions/adr-003-graphify-auto-refresh.md, .opencode/plans/plan-004-{design,test-matrix}.md (audit trail).
+- **Files modified** (4): global-setup.bat (+24 lines, new step 4b), setup.bat (+41 lines, new flag parsing + step 2b), README.md (+10 lines), examples/integrate-into-your-project.md (+4 lines).
+- **Bug found during dev**: %REFRESH_ARGS% (parse-time expansion) was empty at the .bat call site because setlocal enabledelayedexpansion requires !REFRESH_ARGS! (runtime expansion). The first version passed only the trailing --unattended and the helper errored out with "the following arguments are required: --stamp-path". Fixed by changing the call line to use !REFRESH_ARGS!.
+- **Verify**: python scripts/verify-plan.py .opencode/plans/plan-004-auto-refresh-graphify.md ? ALL CHECKS PASSED (20/20).
+- **Pytest**: 86 passed (60 prior + 21 new + 5 .bat smoke).
+- **Live state**:
+  - Idempotent re-run: [OK] graphify 0.8.31 up to date
+  - Stale stamp (0.0.1): upgrade path fires, stamp ? 0.8.31
+  - --dry-run: prints intent, no subprocess
+  - --unattended: no prompt, auto-upgrade
+- **Commits**: ef49f42 (feat: auto-refresh), 41f7415 (chore: archive plan).
+- **Status:** Complete
