@@ -31,6 +31,8 @@ opencode .
 
 **One command does it all:** copies AGENTS.md, merges the 13 agents into opencode.json, installs the pre-commit hook, creates .opencode structure, builds the knowledge graph.
 
+The `/graphify` skill auto-refreshes whenever you re-run the installer.
+
 ### Other scripts
 
 | Script | Purpose |
@@ -67,6 +69,10 @@ snapshot. See
 for the full per-key policy.
 
 Non-interactive: `global-setup.bat --unattended` or `set GLOBAL_SETUP_YES=1 && global-setup.bat`. Also supports `--dry-run` and `--force`.
+
+### Auto-refresh graphify
+
+Re-running `global-setup.bat` checks the pip version of `graphify` against the installed stamp at `~/.config/opencode/skills/graphify/.graphify_version`. When pip is ahead, it prompts `graphify A.B.C installed, pip has X.Y.Z. Refresh? (Y/n):` (default `Y`) and runs `pip install --user --upgrade graphifyy` followed by `python -m graphify install --platform opencode`. `--unattended` auto-upgrades; `--dry-run` previews without changes.
 
 Verify: `opencode agent list` should show all 13 agents and `/help` should list `/setup-project` and `/build`. Undo: `uninstall-global.bat --unattended` (uses the install manifest for clean removal, preserves your other config).
 
@@ -151,6 +157,10 @@ All agents use a fallback chain:
 | `@explorer` | Fast read-only codebase search |
 | `@security` | Vulnerability scanning, security audit |
 | `@perf` | Performance profiling and optimization |
+
+## Troubleshooting
+
+- **Skill version mismatch warning** — re-run `global-setup.bat` (or `setup.bat`) to refresh the graphify skill + plugin. The installer auto-detects the mismatch and prompts to upgrade.
 
 ## License
 

@@ -3,6 +3,23 @@ setlocal enabledelayedexpansion
 
 title Agents-Opencode-Jake — Setup
 
+:: --- Parse flags (args take precedence over env vars) ---
+:: Accept %~1, %~2, %~3 as --unattended, --dry-run, --force. Env vars
+:: SETUP_YES, SETUP_DRY_RUN, SETUP_FORCE also work.
+set "UNATTENDED="
+set "DRY_RUN="
+set "FORCE="
+
+for %%A in ("%~1" "%~2" "%~3") do (
+    if /i "%%~A"=="--unattended" set "UNATTENDED=1"
+    if /i "%%~A"=="--dry-run"   set "DRY_RUN=1"
+    if /i "%%~A"=="--force"     set "FORCE=1"
+)
+
+if "%SETUP_YES%"=="1"      set "UNATTENDED=1"
+if "%SETUP_DRY_RUN%"=="1"  set "DRY_RUN=1"
+if "%SETUP_FORCE%"=="1"    set "FORCE=1"
+
 :: --- Figure out where we are ---
 set "SCRIPT_DIR=%~dp0"
 set "TARGET_DIR=%CD%\"
@@ -57,6 +74,30 @@ if "!MISSING_DEPS!"=="" (
 ) else (
     echo  [INSTALL] missing:!MISSING_DEPS!
     pip install !MISSING_DEPS! 2>&1 | findstr /V "already satisfied" | findstr /V "^$"
+)
+echo.
+
+:: ---- Step 2b: Refresh graphify skill + plugin if pip is ahead of stamp ----
+:: Calls the Python helper to compare the pip-installed graphifyy version
+:: to the stamp at %USERPROFILE%\.config\opencode\skills\graphify\.graphify_version
+:: and refresh the user-scope skill + project-scope plugin if pip is ahead.
+:: The helper is idempotent and never aborts on failure -- if it returns
+:: non-zero, we WARN and continue. See .opencode\plans\plan-004-design.md
+:: and .opencode\decisions\adr-003-graphify-auto-refresh.md for the full contract.
+echo [2b/7] Checking graphify version...
+set "REFRESH_HELPER=%SCRIPT_DIR%.opencode\scripts\graphify_refresh.py"
+if not exist "%REFRESH_HELPER%" (
+    echo  [WARN] refresh helper not found: %REFRESH_HELPER%
+    echo         Skipping graphify version check. Reinstall to recover.
+) else (
+    set "REFRESH_ARGS=--stamp-path %USERPROFILE%\.config\opencode\skills\graphify\.graphify_version"
+    if "%UNATTENDED%"=="1" set "REFRESH_ARGS=!REFRESH_ARGS! --unattended"
+    if "%DRY_RUN%"=="1"    set "REFRESH_ARGS=!REFRESH_ARGS! --dry-run"
+    if "%FORCE%"=="1"      set "REFRESH_ARGS=!REFRESH_ARGS! --yes"
+    python "%REFRESH_HELPER%" !REFRESH_ARGS!
+    if !errorlevel! neq 0 (
+        echo  [WARN] graphify version check returned non-zero; install continues.
+    )
 )
 echo.
 

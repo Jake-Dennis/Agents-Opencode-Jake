@@ -156,6 +156,30 @@ if !errorlevel! equ 0 (
 )
 echo.
 
+:: ---- Step 4b: Refresh graphify skill + plugin if pip is ahead of stamp ----
+:: Calls the Python helper to compare the pip-installed graphifyy version
+:: to the stamp at %USERPROFILE%\.config\opencode\skills\graphify\.graphify_version
+:: and refresh the user-scope skill + project-scope plugin if pip is ahead.
+:: The helper is idempotent and never aborts on failure -- if it returns
+:: non-zero, we WARN and continue. See .opencode\plans\plan-004-design.md
+:: and .opencode\decisions\adr-003-graphify-auto-refresh.md for the full contract.
+echo [4b/5] Checking graphify version...
+set "REFRESH_HELPER=%REPO_DIR%.opencode\scripts\graphify_refresh.py"
+if not exist "%REFRESH_HELPER%" (
+    echo  [WARN] refresh helper not found: %REFRESH_HELPER%
+    echo         Skipping graphify version check. Reinstall to recover.
+) else (
+    set "REFRESH_ARGS=--stamp-path %USERPROFILE%\.config\opencode\skills\graphify\.graphify_version"
+    if "%UNATTENDED%"=="1" set "REFRESH_ARGS=!REFRESH_ARGS! --unattended"
+    if "%DRY_RUN%"=="1"    set "REFRESH_ARGS=!REFRESH_ARGS! --dry-run"
+    if "%FORCE%"=="1"      set "REFRESH_ARGS=!REFRESH_ARGS! --yes"
+    "!PY!" "%REFRESH_HELPER%" !REFRESH_ARGS!
+    if !errorlevel! neq 0 (
+        echo  [WARN] graphify version check returned non-zero; install continues.
+    )
+)
+echo.
+
 if not exist "%MERGE_HELPER%" (
     echo  [ERROR] Merge helper not found: %MERGE_HELPER%
     pause
