@@ -52,10 +52,9 @@ The conductor automatically checks `.opencode/todo.md` on startup and asks if yo
 
 ## Models
 
-All agents use `opencode/deepseek-v4-flash-free` for both primary and fallback:
+All agents inherit the top-level model. Per-agent overrides are removed — change one line to switch models.
 
-- **Model:** `opencode/deepseek-v4-flash-free`
-- **Fallback:** `opencode/deepseek-v4-flash-free`
+- **Model:** `opencode/minimax-m3-free` (top-level, inherited by all agents)
 - **Reasoning effort:** `max` (set in `provider.opencode.options`)
 
 ## Commands

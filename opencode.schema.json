@@ -45,7 +45,7 @@
   "$defs": {
     "agentEntry": {
       "type": "object",
-      "required": ["model", "fallback_model", "description", "mode", "prompt"],
+      "required": ["description", "mode", "prompt"],
       "properties": {
         "model": { "type": "string", "pattern": "^[a-z0-9_-]+/[a-z0-9_.-]+$" },
         "fallback_model": { "type": "string", "pattern": "^[a-z0-9_-]+/[a-z0-9_.-]+$" },

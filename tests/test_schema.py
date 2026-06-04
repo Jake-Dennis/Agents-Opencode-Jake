@@ -18,12 +18,13 @@ def test_default_agent_exists(cfg):
         f"default_agent {cfg['default_agent']!r} not in agent map"
 
 
-def test_all_agents_have_consistent_models(cfg):
-    """Every agent's model must match the top-level model (constraint)."""
+def test_all_agents_inherit_top_level_model(cfg):
+    """Agents inherit the top-level model; if set explicitly, it must match."""
     top = cfg["model"]
     for name, entry in cfg["agent"].items():
-        assert entry["model"] == top, \
-            f"agent.{name}.model ({entry['model']}) != top-level model ({top})"
+        if "model" in entry:
+            assert entry["model"] == top, \
+                f"agent.{name}.model ({entry['model']}) != top-level model ({top})"
 
 
 def test_commands_use_template_not_prompt(cfg):
