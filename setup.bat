@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-title Agents-Opencode-Jake — Setup
+title Agents-Opencode-Jake -- Setup
 
 :: --- Parse flags (args take precedence over env vars) ---
 :: Accept %~1, %~2, %~3 as --unattended, --dry-run, --force. Env vars
@@ -25,7 +25,7 @@ set "SCRIPT_DIR=%~dp0"
 set "TARGET_DIR=%CD%\"
 
 echo ============================================
-echo  Agents-Opencode-Jake — Install into project
+echo  Agents-Opencode-Jake -- Install into project
 echo ============================================
 echo.
 echo  Running from: %SCRIPT_DIR%
@@ -47,14 +47,24 @@ if not exist "%SCRIPT_DIR%opencode.json" (
 
 :: ---- Step 1: Check Python ----
 echo [1/7] Checking Python...
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo  [ERROR] Python not found. Please install Python 3.10+.
+
+:: Resolve Python (try `python`, then `py`). Skip `python3` (MS Store stub).
+set "PY="
+for /f "delims=" %%P in ('where python 2^>nul') do (
+    if not defined PY set "PY=%%P"
+)
+if not defined PY (
+    for /f "delims=" %%P in ('where py 2^>nul') do (
+        if not defined PY set "PY=%%P"
+    )
+)
+if not defined PY (
+    echo  [ERROR] Python not found. Please install Python 3.10+ or set PATH.
     pause
     exit /b 1
 )
-for /f "tokens=2" %%v in ('python --version 2^>^&1') do set "PY_VER=%%v"
-echo  Python %PY_VER%
+echo  Python: !PY!
+!PY! --version
 echo.
 
 :: ---- Step 2: Install Python dependencies (only if missing) ----
@@ -63,12 +73,12 @@ echo.
 :: is `graphify`. We install only the missing ones; re-runs are a no-op.
 echo [2/7] Checking Python dependencies...
 set "MISSING_DEPS="
-python -c "import graphify" >nul 2>&1
-if %errorlevel% neq 0 set "MISSING_DEPS=!MISSING_DEPS! graphifyy"
-python -c "import pytest" >nul 2>&1
-if %errorlevel% neq 0 set "MISSING_DEPS=!MISSING_DEPS! pytest"
-python -c "import jsonschema" >nul 2>&1
-if %errorlevel% neq 0 set "MISSING_DEPS=!MISSING_DEPS! jsonschema"
+!PY! -c "import graphify" >nul 2>&1
+if !errorlevel! neq 0 set "MISSING_DEPS=!MISSING_DEPS! graphifyy"
+!PY! -c "import pytest" >nul 2>&1
+if !errorlevel! neq 0 set "MISSING_DEPS=!MISSING_DEPS! pytest"
+!PY! -c "import jsonschema" >nul 2>&1
+if !errorlevel! neq 0 set "MISSING_DEPS=!MISSING_DEPS! jsonschema"
 if "!MISSING_DEPS!"=="" (
     echo  All dependencies already installed.
 ) else (
@@ -94,7 +104,7 @@ if not exist "%REFRESH_HELPER%" (
     if "%UNATTENDED%"=="1" set "REFRESH_ARGS=!REFRESH_ARGS! --unattended"
     if "%DRY_RUN%"=="1"    set "REFRESH_ARGS=!REFRESH_ARGS! --dry-run"
     if "%FORCE%"=="1"      set "REFRESH_ARGS=!REFRESH_ARGS! --yes"
-    python "%REFRESH_HELPER%" !REFRESH_ARGS!
+    "!PY!" "%REFRESH_HELPER%" !REFRESH_ARGS!
     if !errorlevel! neq 0 (
         echo  [WARN] graphify version check returned non-zero; install continues.
     )
@@ -116,7 +126,20 @@ if exist "%SCRIPT_DIR%scripts\verify-plan.py" (
     if exist "%SCRIPT_DIR%scripts\install-hook.sh" (
         copy /Y "%SCRIPT_DIR%scripts\install-hook.sh" "%TARGET_DIR%scripts\install-hook.sh" >nul
     )
-    echo    scripts\ (verify-plan.py, pre-commit, install-hook.sh)
+    if exist "%SCRIPT_DIR%scripts\build_graph.py" (
+        copy /Y "%SCRIPT_DIR%scripts\build_graph.py" "%TARGET_DIR%scripts\build_graph.py" >nul
+    )
+    echo    scripts\ (verify-plan.py, pre-commit, install-hook.sh, build_graph.py)
+)
+
+:: .opencode/scripts/ (merge helper, graphify_refresh)
+if exist "%SCRIPT_DIR%.opencode\scripts\opencode_jsonc_merge.py" (
+    if not exist "%TARGET_DIR%.opencode\scripts" mkdir "%TARGET_DIR%.opencode\scripts"
+    copy /Y "%SCRIPT_DIR%.opencode\scripts\opencode_jsonc_merge.py" "%TARGET_DIR%.opencode\scripts\opencode_jsonc_merge.py" >nul
+    if exist "%SCRIPT_DIR%.opencode\scripts\graphify_refresh.py" (
+        copy /Y "%SCRIPT_DIR%.opencode\scripts\graphify_refresh.py" "%TARGET_DIR%.opencode\scripts\graphify_refresh.py" >nul
+    )
+    echo    .opencode\scripts\ (merge helper, graphify_refresh)
 )
 
 :: .opencode/skills/
@@ -133,21 +156,11 @@ echo.
 echo [4/7] Configuring opencode.json...
 
 if exist "%TARGET_DIR%opencode.json" (
-    echo  Project already has opencode.json — merging agent block...
-    python -c "
-import json, sys, io
-src = json.load(open(r'%SCRIPT_DIR%opencode.json', encoding='utf-8'))
-tgt_file = r'%TARGET_DIR%opencode.json'
-tgt = json.load(open(tgt_file, encoding='utf-8'))
-tgt['agent'] = src['agent']
-tgt['instructions'] = list(set(tgt.get('instructions', []) + ['AGENTS.md']))
-tgt.setdefault('skills', {})['paths'] = list(set(tgt.get('skills', {}).get('paths', []) + ['.opencode/skills']))
-with open(tgt_file, 'w', encoding='utf-8') as f:
-    json.dump(tgt, f, indent=2, ensure_ascii=False)
-print('  Merged: agent block copied, instructions + skills paths added')
-"
+    echo  Project already has opencode.json -- merging agent block...
+    :: Single-line Python merge to avoid batch parenthesis issues
+    "!PY!" -c "import json, sys; src = json.load(open(r'%SCRIPT_DIR%opencode.json', encoding='utf-8')); tgt_file = r'%TARGET_DIR%opencode.json'; tgt = json.load(open(tgt_file, encoding='utf-8')); tgt['agent'] = src['agent']; tgt['instructions'] = list(set(tgt.get('instructions', []) + ['AGENTS.md'])); tgt.setdefault('skills', {}).setdefault('paths', []); [tgt['skills']['paths'].append(p) for p in ['.opencode/skills'] if p not in tgt['skills']['paths']]; json.dump(tgt, open(tgt_file, 'w', encoding='utf-8'), indent=2, ensure_ascii=False); print('  Merged: agent block copied, instructions + skills paths added')"
 ) else (
-    echo  No opencode.json found — copying standalone config...
+    echo  No opencode.json found -- copying standalone config...
     copy /Y "%SCRIPT_DIR%opencode.json" "%TARGET_DIR%opencode.json" >nul
     echo  Created: opencode.json (standalone with all 13 agents)
 )
@@ -230,14 +243,46 @@ echo.
 
 :: ---- Step 7: Build knowledge graph ----
 echo [7/7] Building knowledge graph...
-python -m graphify "%TARGET_DIR%" --depth 5 --export html --export json 2>nul
-if %errorlevel% equ 0 (
-    echo  Knowledge graph built: graphify-out\
-) else (
-    echo  [INFO] Graph build skipped (graphify may not support --depth).
-    echo  Run once opencode is open: /graphify .
-)
+call :build_knowledge_graph
 echo.
+
+:: ---- Summary ----
+echo ============================================
+echo  Setup complete!
+echo ============================================
+echo.
+echo  Copied to: %TARGET_DIR%
+echo.
+echo  What was installed:
+echo    - AGENTS.md  (agent workflow docs)
+echo    - opencode.json  (13 agent definitions)
+echo    - scripts\  (verify-plan.py, pre-commit hook)
+echo    - .opencode\  (skills, plans, decisions, todo)
+echo    - .gitignore
+echo    - Pre-commit hook
+echo    - Knowledge graph
+echo.
+echo  Now run: opencode .
+echo  Then:    /graphify .
+echo.
+pause
+exit /b 0
+
+:: ---- Knowledge graph build subroutine ----
+:build_knowledge_graph
+if not exist "%TARGET_DIR%scripts\build_graph.py" (
+    echo  [WARN] build_graph.py not found, skipping graph build.
+    goto :eof
+)
+"!PY!" "%TARGET_DIR%scripts\build_graph.py" "%TARGET_DIR%" >nul 2>&1
+if errorlevel 1 goto :graph_fail
+echo  Knowledge graph built: graphify-out\
+goto :eof
+
+:graph_fail
+echo  [INFO] Graph build skipped (graphify may not support --depth).
+echo  Run once opencode is open: /graphify .
+goto :eof
 
 :: ---- Summary ----
 echo ============================================
