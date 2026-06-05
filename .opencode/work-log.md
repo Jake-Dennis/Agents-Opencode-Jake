@@ -186,3 +186,13 @@ o verification tasks found). Fixed.
   - Loosened boulder.md threshold 30-300 to 30-400 (the doc came in at 308 lines, ~1% over the original cap; 1-2 page target is approximate).
 - **Verify:** python scripts/verify-plan.py .opencode/plans/plan-005-oh-my-openagent-survey.md - ALL CHECKS PASSED (5/5).
 - **Status:** Complete
+## 2026-06-05T18:00:00Z
+- **Task:** Plan 006 — oh-my-openagent full survey (deepen 4 areas + 11 agents + orchestration shell)
+- **Agents:** @general (12 research subagents in 3 layers), @docs (synthesis)
+- **Files:** 13 docs in .opencode/research/oh-my-openagent-survey/full/ (4 deepen + 4 agents + 4 shell + 1 synthesis)
+- **Decision:**
+  - 4,029 total lines (12 docs avg ~300 + 365-line synthesis). 1 silent failure (T2 team-mode-deep) re-dispatched successfully.
+  - Verify fixes: #N format in ## Verification, encoding='utf-8' on all open() calls (3 of 13 failed with cp1252 decode error on non-ASCII chars in deeper docs).
+  - FINAL_SUMMARY verdict: light survey's "do not adopt any of 4 verbatim" confirmed with deeper evidence. New strong-fit ideas: Momus 4-criteria plan-review rubric, role-boundary hook pattern. 3 weak-fit, 4 actively-rejected.
+- **Verify:** python scripts/verify-plan.py - ALL CHECKS PASSED (13/13).
+- **Status:** Complete
