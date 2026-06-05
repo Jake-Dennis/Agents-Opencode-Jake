@@ -14,11 +14,11 @@ Address all 15 improvement opportunities identified through graph analysis, test
 ### Layer 1 (parallel, no dependencies — 6 tasks)
 
 - [x] **#1 — Move tests into the repo** (assigned: @builder) — DONE 2026-06-03
-  - Created `tests/` with 4 moved files + `__init__.py` + `conftest.py` (basic fixtures) + `pytest.ini`
+  - Created `tests/` with 4 moved files + `tests/__init__.py` + `tests/conftest.py` (basic fixtures) + `pytest.ini`
   - Updated `.gitignore` for `__pycache__/`
   - 632/632 script-style checks still pass when run as scripts
 
-- [x] **#2 — Re-run `/graphify . --update`** (assigned: conductor [direct]) — DONE 2026-06-03
+- [x] **#2 — Re-run `/graphify . --update`** (assigned: @conductor [direct]) — DONE 2026-06-03
   - Subsumed by #6 (full --deep run) which captured all 8 new files
   - Graph grew from 161 → 275 nodes, 187 → 314 edges
 
@@ -31,7 +31,7 @@ Address all 15 improvement opportunities identified through graph analysis, test
   - `.opencode/decisions/adr-001-json-only-agents.md` (83 lines, MADR template)
   - Captures Problem A (mode override), Problem B (template bug), and the decision rationale
 
-- [x] **#6 — Run `/graphify . --deep`** (assigned: conductor [direct]) — DONE 2026-06-03
+- [x] **#6 — Run `/graphify . --deep`** (assigned: @conductor [direct]) — DONE 2026-06-03
   - Full re-extraction with deep INFERRED edges
   - 12 new nodes for schema/ADR/plan/test files, 6 INFERRED edges (e.g. `template_schema_mismatch → template_field`)
 
@@ -55,14 +55,14 @@ Address all 15 improvement opportunities identified through graph analysis, test
 
 - [x] **#9 — `tests/conftest.py` with shared fixtures** (assigned: @tester, depends on #1) — DONE 2026-06-03
   - 9 fixtures: `repo_path`, `cfg`, `schema`, `agent_names`, `conductor_prompt`, `work_log_path`, `reset_work_log`, `plans_dir`, `completed_plans_dir`
-  - Migrated `test_schema.py` and `test_conductor_workflow.py` to consume the shared fixtures (removed local `cfg`/`schema` fixtures from test_schema.py)
+  - Migrated `tests/test_schema.py` and `tests/test_conductor_workflow.py` to consume the shared fixtures (removed local `cfg`/`schema` fixtures from test_schema.py)
 
-- [x] **#8 — Generate Obsidian vault** (assigned: conductor [direct], depends on #2 OR #6) — DONE 2026-06-03
+- [x] **#8 — Generate Obsidian vault** (assigned: @conductor [direct], depends on #2 OR #6) — DONE 2026-06-03
   - 300 .md notes + 24 `_COMMUNITY_*.md` notes + `graph.canvas` (121KB) in `graphify-out/obsidian/`
   - Generated via `graphify.export.to_obsidian` + `to_canvas`
 
-- [x] **#10 — Generate wiki** (assigned: conductor [direct], depends on #2 OR #6) — DONE 2026-06-03
-  - 34 articles + `index.md` in `graphify-out/wiki/`
+- [x] **#10 — Generate wiki** (assigned: @conductor [direct], depends on #2 OR #6) — DONE 2026-06-03
+  - 34 articles + `graphify-out/wiki/index.md`
   - Generated via `graphify.wiki.to_wiki`
 
 - [x] **#12 — `examples/` directory** (assigned: @docs, depends on #4) — DONE 2026-06-03
