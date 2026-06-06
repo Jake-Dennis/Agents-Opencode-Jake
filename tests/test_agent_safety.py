@@ -23,6 +23,7 @@ characters in the conductor prompt). See
 Stdlib only. Clear failure messages naming the offending agent.
 """
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -490,3 +491,160 @@ def test_T_AS_10_commands_removed_from_json():
             f"and having both definitions creates override ambiguity. "
             f"Current value: {command[name]!r}"
         )
+
+
+# ===========================================================================
+# plan-012: per-agent color + temperature + top_p + variant
+# ===========================================================================
+
+# Valid color values per upstream opencode config: a 6-digit hex
+# (`#RRGGBB`) OR one of the 8 theme names. T-AS-11 enforces this for all
+# 13 agents.
+_VALID_HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+_VALID_THEME_COLORS = {
+    "primary", "secondary", "accent",
+    "success", "warning", "error", "info",
+}
+
+
+# ---------------------------------------------------------------------------
+# T-AS-11: All 13 agents have a `color` field that is valid
+# ---------------------------------------------------------------------------
+
+def test_T_AS_11_all_agents_have_valid_color():
+    """T-AS-11: Each agent has a `color` field that is either a valid
+    hex (`^#[0-9a-fA-F]{6}$`) or one of the 8 theme names.
+    Plan-012's design uses 13 distinct hex codes (tailwind-200/300/400
+    palette) for the 13 agents.
+    """
+    cfg = _load_config()
+    agents = cfg["agent"]
+    assert len(agents) == 13, f"expected 13 agents, got {len(agents)}"
+
+    bad = []
+    for name, body in agents.items():
+        if not isinstance(body, dict):
+            bad.append((name, f"<not a dict: {type(body).__name__}>"))
+            continue
+        if "color" not in body:
+            bad.append((name, "<missing color field>"))
+            continue
+        color = body["color"]
+        if not isinstance(color, str):
+            bad.append((name, f"<non-string: {type(color).__name__}: {color!r}>"))
+            continue
+        if _VALID_HEX_COLOR.match(color):
+            continue  # valid hex
+        if color in _VALID_THEME_COLORS:
+            continue  # valid theme name
+        bad.append((name, color))
+
+    assert not bad, (
+        f"agents with invalid color values: {bad}\n"
+        f"Valid: a 6-digit hex (#RRGGBB) or one of "
+        f"{sorted(_VALID_THEME_COLORS)}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T-AS-12: temperature values are numbers in [0.0, 2.0]
+# ---------------------------------------------------------------------------
+
+def test_T_AS_12_temperature_in_range():
+    """T-AS-12: For agents with a `temperature` field, the value is a
+    number in [0.0, 2.0]. (Upstream docs say 0.0-1.0 but providers may
+    accept up to 2.0.)
+    Plan-012's design sets `temperature: 0.1` on `reviewer` + `security`
+    and `temperature: 0.2` on `planner` + `architect`. All other agents
+    have no `temperature` field and use the model default.
+    """
+    cfg = _load_config()
+    agents = cfg["agent"]
+    bad = []
+    for name, body in agents.items():
+        if not isinstance(body, dict) or "temperature" not in body:
+            continue
+        t = body["temperature"]
+        if not isinstance(t, (int, float)) or isinstance(t, bool):
+            bad.append((name, f"<non-numeric: {type(t).__name__}: {t!r}>"))
+            continue
+        if not (0.0 <= float(t) <= 2.0):
+            bad.append((name, f"<out of range: {t!r}>"))
+
+    assert not bad, f"agents with invalid temperature: {bad}"
+
+
+# ---------------------------------------------------------------------------
+# T-AS-13: top_p values are numbers in [0.0, 1.0]
+# ---------------------------------------------------------------------------
+
+def test_T_AS_13_top_p_in_range():
+    """T-AS-13: For agents with a `top_p` field, the value is a number
+    in [0.0, 1.0].
+    Plan-012's design does NOT add `top_p` to any agent (mutually
+    exclusive with `temperature` per the plan). This test passes
+    trivially but guards against future plans that add `top_p`.
+    """
+    cfg = _load_config()
+    agents = cfg["agent"]
+    bad = []
+    for name, body in agents.items():
+        if not isinstance(body, dict) or "top_p" not in body:
+            continue
+        p = body["top_p"]
+        if not isinstance(p, (int, float)) or isinstance(p, bool):
+            bad.append((name, f"<non-numeric: {type(p).__name__}: {p!r}>"))
+            continue
+        if not (0.0 <= float(p) <= 1.0):
+            bad.append((name, f"<out of range: {p!r}>"))
+
+    assert not bad, f"agents with invalid top_p: {bad}"
+
+
+# ---------------------------------------------------------------------------
+# T-AS-14: variant values are non-empty strings
+# ---------------------------------------------------------------------------
+
+def test_T_AS_14_variant_is_nonempty_string():
+    """T-AS-14: For agents with a `variant` field, the value is a
+    non-empty string (after strip).
+    Plan-012's design does NOT add `variant` to any agent (the model
+    name `opencode/minimax-m3-free` is unverified; the `opencode models`
+    CLI crashes; Zen free-tier variants are undocumented in the
+    upstream docs). This test passes trivially but guards against
+    future plans that add `variant`.
+    """
+    cfg = _load_config()
+    agents = cfg["agent"]
+    bad = []
+    for name, body in agents.items():
+        if not isinstance(body, dict) or "variant" not in body:
+            continue
+        v = body["variant"]
+        if not isinstance(v, str) or not v.strip():
+            bad.append((name, f"<not a non-empty string: {v!r}>"))
+
+    assert not bad, f"agents with invalid variant: {bad}"
+
+
+# ---------------------------------------------------------------------------
+# T-AS-15: no agent has BOTH temperature AND top_p
+# ---------------------------------------------------------------------------
+
+def test_T_AS_15_no_temperature_AND_top_p():
+    """T-AS-15: No agent has BOTH `temperature` and `top_p` set.
+    Per plan-012: these are mutually exclusive in practice (both reduce
+    randomness; applying both is redundant). Plan-012 sets `temperature`
+    on 4 agents and `top_p` on none, so this test passes trivially.
+    """
+    cfg = _load_config()
+    agents = cfg["agent"]
+    bad = [
+        name for name, body in agents.items()
+        if isinstance(body, dict)
+        and "temperature" in body
+        and "top_p" in body
+    ]
+    assert not bad, (
+        f"agents with BOTH temperature and top_p (mutually exclusive): {bad}"
+    )

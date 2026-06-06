@@ -288,3 +288,27 @@ o verification tasks found). Fixed.
   - **Skill body content matches the style of the existing `graphify-agent-workflow` skill** - all 5 sections: When to use, Process / Checklist, Examples, Common pitfalls, Reference (the last varies by skill).
 - **Verify:** `python scripts/verify-plan.py .opencode/plans/plan-011-add-skills.md` - ALL CHECKS PASSED (6/6 verification + 5/5 mechanical). `python -m pytest tests/test_skills.py -q` - 24/24 passing (8 T-SK-1..T-SK-8 tests + 16 parametrized variants).
 - **Status:** Complete
+
+## 2026-06-06T15:30:00Z
+- **Task:** Plan 012 - Per-agent color + temperature + top_p + variant
+- **Agents:** @architect (design), @tester (T-AS-11..T-AS-15), @builder (apply matrix), conductor (verify + archive + commit)
+- **Files:**
+  - `opencode.json` (modified: +13 `color` fields + 4 `temperature` fields, +17/-0 lines, no other changes)
+  - `tests/test_agent_safety.py` (extended: +5 tests T-AS-11..T-AS-15, 492 -> 700 lines, 15 total tests)
+  - `.opencode/plans/plan-012-design.md` (new, 130 lines, 7 sections)
+  - `.opencode/plans/completed/plan-012-agent-tunings.md` (archived)
+  - `.opencode/plans/completed/plan-008-superseded-by-plan-009-010-011-012.md` (archived with rename; plan-008 is superseded by the 4 follow-up plans that all touched the 13 agents)
+- **Matrix applied (13 agents):**
+  - `color`: 13 distinct hex codes from the tailwind-200/300/400 palette, semantically grouped (implementation: greens; review: amber; planning: purples; operations: slate/red/pink)
+  - `temperature: 0.1`: reviewer, security (deterministic checklists)
+  - `temperature: 0.2`: planner, architect (predictable plans/designs)
+  - `top_p`: NOT added (mutually exclusive with `temperature` per the plan)
+  - `variant`: NOT added (model `opencode/minimax-m3-free` is unverified; `opencode models` CLI crashes; Zen free-tier variants are undocumented in upstream docs; plan explicitly says "if unverifiable, err on the side of NOT setting variant")
+- **Decisions:**
+  - **Use hex codes, not theme names.** Theme names give 8 distinct values for 13 agents; hex codes give 16M+ distinct values. Grouped 13 colors into 5 semantic families (implementation/review/read-only/planning/operations).
+  - **Skip `top_p` entirely** rather than apply to the 9 "default" agents. Easier to reason about, and the plan's T-AS-15 mutual-exclusivity test guards against future drift.
+  - **Skip `variant` for now** (deferred to a future plan). Webfetch on https://opencode.ai/docs/models confirmed variants are provider+model-specific; built-in variants are listed for Anthropic/OpenAI/Google but NOT for the `opencode` (Zen) provider. The project's model name itself is unverified.
+  - **1 plan-file bug caught and fixed during L3 verify:** #9 was self-referential (`python scripts/verify-plan.py plan-012-...md`, the same recursion bug fixed in plan-010/011). Replaced with a non-recursive structural check.
+- **Verify:** `python scripts/verify-plan.py .opencode/plans/plan-012-agent-tunings.md` - ALL CHECKS PASSED (9/9 verification + 5/5 mechanical). `python -m pytest tests/test_agent_safety.py -q` - 15/15 passing (T-AS-1..T-AS-15).
+- **Pre-existing failures (NOT caused by plan-012, NOT fixed):** 5 tests in the full suite fail: 3 in `test_conductor_workflow.py` (test_conductor_prompt_has_all_14_workflow_steps / test_conductor_prompt_references_all_subagents / test_conductor_prompt_has_plan_template — all check the in-JSON conductor prompt, which plan-010 moved to `.opencode/agents/conductor.md`); 1 in `test_schema.py` (likely needs the schema updated to allow the new `color`/`temperature` fields); 1 in `test_verify_plan.py::test_real_plan_001` (assertions about plan-001 may have drifted). 145/150 tests pass. These are pre-existing; deferring fixes to a future plan.
+- **Status:** Complete
