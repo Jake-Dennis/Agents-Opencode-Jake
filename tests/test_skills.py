@@ -36,8 +36,14 @@ NAME_MAX = 64
 DESC_MIN = 1
 DESC_MAX = 1024
 BODY_MIN = 100
-BODY_MAX = 10000
 
+# Raised 10000 -> 15000 (June 6, post-skill-update):
+# The two project-maintained skills grew when we added reference content
+# for path-scoped permissions (opencode-config-merge, +1707 chars to 10290)
+# and 4 plan-file pitfall patterns (verify-plan-gate, +3455 chars to 10988).
+# Both are still under the 400-line cap from the plan-011 spec.
+# Previous bumps: 5000 -> 10000 in plan-011 (June 6).
+BODY_MAX = 15000
 
 # ---------------------------------------------------------------------------
 # Helpers

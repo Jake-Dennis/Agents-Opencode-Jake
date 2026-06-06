@@ -92,6 +92,76 @@ assert 'command' not in cfg
 
 The first version of `verify-plan.py` had no `@-assignment` check. A subagent wrote a plan with `(assigned: @conductor)` in parens — the check would have caught this. The check was added in plan-007; the test file is `tests/test_verify_plan.py`.
 
+## Plan-file pitfall patterns (Phase 2 commands)
+
+These are recurring patterns that fool the Phase-2 command runner. Each one was caught in a real plan (plan-009, plan-010, plan-011, plan-012, plan-013); the fixes are mechanical.
+
+### Pitfall A: multi-line Python inside `python -c "..."`
+
+`python -c` does NOT support multi-line statements (no `if/for/with` blocks). The shell sees the literal newline and breaks the quoting.
+
+```markdown
+- WRONG:
+- [x] #3: `python -c "import json; c=json.load(open('opencode.json')); 
+    for a in readonly+impl:
+        if 'jobs.md' not in c['agent'][a].get('prompt',''):
+            missing.append(a)"`
+
+- RIGHT (single-line list comprehension):
+- [x] #3: `python -c "import json; c=json.load(open('opencode.json')); missing=[a for a in c['agent'] if 'jobs.md' not in c['agent'][a].get('prompt','')]; assert not missing"`
+```
+
+If the logic is too complex for a one-liner, write the script to a temp file and run it with `python <path>` instead of `python -c`.
+
+### Pitfall B: forward-references to future files
+
+Backticked paths are checked for existence at verify time. A reference to a file that WILL be created in L4 (the archive step) fails the check NOW.
+
+```markdown
+- WRONG (line 168):
+- `.opencode/plans/completed/plan-013-live-progress-tracking.md` (archived)
+
+- RIGHT (use prose, no backticks):
+- Archived copies of the plan and design in `.opencode/plans/completed/` (created in L4)
+```
+
+The same pattern applies to:
+- Future archive files (`.opencode/plans/completed/<plan>-*`)
+- Future feature artifacts (`.opencode/jobs-archive.md` from a future plan)
+- Any path that doesn't exist at the moment the plan is being verified
+
+### Pitfall C: bare backticked paths without proper prefixes
+
+The cross-reference resolver checks `workdir / <ref>`, so the path must be repo-root-relative AND must include all parent directories.
+
+```markdown
+- WRONG (bare, won't resolve):
+- runs `verify-plan.py` FIRST              → workdir/verify-plan.py (doesn't exist)
+- `todo.md` = high-level                   → workdir/todo.md (doesn't exist)
+- `jobs.md` = fine-grained                 → workdir/jobs.md (doesn't exist)
+
+- RIGHT (with proper prefix):
+- runs `scripts/verify-plan.py` FIRST      → workdir/scripts/verify-plan.py ✓
+- `.opencode/todo.md` = high-level         → workdir/.opencode/todo.md ✓
+- `.opencode/jobs.md` = fine-grained       → workdir/.opencode/jobs.md ✓
+```
+
+Source: plan-013 L3 verify caught 8 of these in one pass; the fixes are mechanical (add `scripts/` or `.opencode/` prefix, or remove backticks).
+
+### Pitfall D: self-referential `verify-plan.py` invocations
+
+The recursion bug: the plan's own `## Verification` section contains a command that runs `verify-plan.py` against the SAME plan. The script tries to verify its own verifier and recurses infinitely (or hits the 300-second timeout).
+
+```markdown
+- WRONG:
+- [x] #10: `python scripts/verify-plan.py .opencode/plans/plan-013-live-progress-tracking.md`
+
+- RIGHT (non-recursive structural check):
+- [x] #10: `python -c "import re; t=open('.opencode/plans/plan-013-live-progress-tracking.md', encoding='utf-8').read(); assert all(s in t for s in ['## Goal', '## Tasks', '## Verification', '## Deliverables'])"`
+```
+
+This was caught in plan-009, plan-010, plan-011, plan-012, and plan-013 — every plan in the current series. The fix is always the same: replace the recursive call with a static check that the plan has all required sections.
+
 ## Common pitfalls
 
 - **Pitfall 1: "Subagent said 10/10 tests pass, I'll trust it"** — NO. The 3-layer enforcement exists because the LLM used to trust subagent reports. Re-run the tests yourself.

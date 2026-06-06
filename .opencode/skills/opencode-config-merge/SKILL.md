@@ -1,6 +1,6 @@
 ---
 name: opencode-config-merge
-description: Use when running or troubleshooting the global-install / uninstall scripts (`global-setup.bat`, `setup.bat`, `uninstall-global.bat`), or when a per-key merge policy is questioned. Documents the per-key table (scalars overwrite, arrays union+dedupe, `agent.<name>` deep-merge with warning, `command.<name>`/`mcp.<name>` project-wins, `provider`/`permission` deep-merge+restore, `enabled_providers` union+filter, `$schema` overwrite) and the snapshot+restore semantic. Avoid for non-merge config edits — that is a manual edit to the global `opencode.jsonc`.
+description: Use when running or troubleshooting the global-install / uninstall scripts (`global-setup.bat`, `setup.bat`, `uninstall-global.bat`), when a per-key merge policy is questioned, or when adding a `permission.<agent>.<key>` pattern (the 3 forms: scalar `"allow"`/`"deny"`, path-scoped `{"path": "allow", "*": "deny"}`, and object form) to the project's `opencode.json`. Documents the per-key table, the snapshot+restore semantic, and the 3 permission forms. Avoid for non-merge config edits to the user's global `opencode.jsonc`.
 ---
 
 # OpenCode Config Merge
@@ -42,6 +42,20 @@ For `provider` and `permission` ONLY, the installer:
 3. **Uninstall step 1:** read `added.provider_snapshot` from the manifest. If non-null, restore it verbatim. If null, DELETE the `provider` key from the global.
 
 **Why snapshot+restore?** The project may have only partially owned `provider` (e.g., it merged in its own `provider.opencode` block but left the user's `provider.anthropic` block alone). On uninstall, the user's pre-existing state is exactly what they had before the install — no half-merged residue.
+
+### The 3 permission patterns (post-plan-013)
+
+The `permission` block in the project's `opencode.json` has 3 recognized forms per sub-key (`edit`, `bash`, `webfetch`, `task`, `read`, `write`, etc.). The installer merges all 3 the same way (recursive deep-merge at the top level), but the runtime semantics differ:
+
+| Form | Example | Semantics | Used by |
+|---|---|---|---|
+| Scalar `"allow"` | `"edit": "allow"` | Allow all writes/commands of this type | 6 implementation agents (builder, tester, docs, debugger, refactor, perf) |
+| Scalar `"deny"` | `"edit": "deny"` | Deny all writes/commands of this type | Most read-only agents in their default state |
+| Path-scoped object | `"edit": { ".opencode/jobs.md": "allow", "*": "deny" }` | Allow ONLY the listed paths; deny the catch-all `*` glob | 5 read-only agents post-plan-013 (planner, architect, reviewer, explorer, security) |
+
+**Pattern 3 (path-scoped object) is new as of plan-013 (June 2026).** It mirrors the git agent's existing pattern: `"bash": { "git *": "allow", "*": "deny" }`. The `*` key is the catch-all glob; any path not matching an earlier key is denied. The path values are literal (no glob wildcards); case-sensitivity is the platform default (case-insensitive on Windows).
+
+**Why this matters for the merge:** the path-scoped object form is itself a dict, so the recursive deep-merge of `permission` applies at the dict level. If the user already has `"permission": {"edit": {"some_user_path": "allow"}}` and the project adds `"permission": {"edit": {".opencode/jobs.md": "allow", "*": "deny"}}`, the merge yields a permission with BOTH paths allowed plus the catch-all deny. The snapshot+restore handles the inverse on uninstall.
 
 ### The FIRST-wins rule on re-runs
 
