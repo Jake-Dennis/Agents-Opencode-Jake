@@ -51,7 +51,21 @@
         "fallback_model": { "type": "string", "pattern": "^[a-z0-9_-]+/[a-z0-9_.-]+$" },
         "description": { "type": "string", "minLength": 20 },
         "mode": { "enum": ["primary", "subagent", "all"] },
-        "prompt": { "type": "string", "minLength": 50 },
+        "prompt": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 50,
+              "description": "Inline prompt body. Must be 50+ chars."
+            },
+            {
+              "type": "string",
+              "pattern": "^\\{file:\\.\\.?/.*\\.md\\}$",
+              "minLength": 10,
+              "description": "File reference to a markdown file, e.g. {file:./.opencode/agents/conductor.md}. Used by plan-010's markdown-migration pattern."
+            }
+          ]
+        },
         "permission": { "type": "object" }
       }
     }

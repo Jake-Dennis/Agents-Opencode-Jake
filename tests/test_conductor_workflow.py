@@ -67,9 +67,15 @@ def test_plan_file_has_checkboxes(fake_plan):
     assert "- [ ]" in verification_section, "Verification section missing checkboxes"
 
 
-def test_conductor_prompt_has_all_14_workflow_steps(cfg):
-    """The conductor's prompt must include all 14 workflow step names."""
-    prompt = cfg["agent"]["conductor"]["prompt"]
+def test_conductor_prompt_has_all_14_workflow_steps(cfg, repo_path):
+    """The conductor's prompt must include all 14 workflow step names.
+
+    Plan-010 moved the conductor's prompt body out of opencode.json into
+    `.opencode/agents/conductor.md`. The JSON now holds a
+    `{file:./.opencode/agents/conductor.md}` ref. This test resolves
+    the ref and reads the markdown file's body.
+    """
+    prompt = _load_conductor_prompt_body(cfg, repo_path)
     required_steps = [
         "1. CLARIFY", "2. GRAPHIFY", "3. PLAN", "4. TODO",
         "5. DISPATCH", "6. TRACK", "7. REVIEW", "8. VERIFY",
@@ -80,22 +86,49 @@ def test_conductor_prompt_has_all_14_workflow_steps(cfg):
         assert step in prompt, f"Conductor prompt missing step: {step}"
 
 
-def test_conductor_prompt_references_all_subagents(cfg):
-    """The conductor's prompt must @mention all 12 subagents."""
-    prompt = cfg["agent"]["conductor"]["prompt"]
+def test_conductor_prompt_references_all_subagents(cfg, repo_path):
+    """The conductor's prompt must @mention all 12 subagents.
+
+    See test_conductor_prompt_has_all_14_workflow_steps for why this
+    test reads the markdown file (plan-010 refactor).
+    """
+    prompt = _load_conductor_prompt_body(cfg, repo_path)
     expected = ["planner", "builder", "architect", "reviewer", "tester",
                 "docs", "debugger", "refactor", "git", "explorer", "security", "perf"]
     for agent_name in expected:
         assert f"@{agent_name}" in prompt, f"Conductor prompt missing @{agent_name}"
 
 
-def test_conductor_prompt_has_plan_template(cfg):
-    """The conductor's prompt must include a plan file template."""
-    prompt = cfg["agent"]["conductor"]["prompt"]
+def test_conductor_prompt_has_plan_template(cfg, repo_path):
+    """The conductor's prompt must include a plan file template.
+
+    See test_conductor_prompt_has_all_14_workflow_steps for why this
+    test reads the markdown file (plan-010 refactor).
+    """
+    prompt = _load_conductor_prompt_body(cfg, repo_path)
     assert "## Plan File Template" in prompt, \
         "Conductor prompt missing '## Plan File Template' section"
     assert "## Tasks" in prompt, "Conductor plan template missing '## Tasks'"
     assert "## Verification" in prompt, "Conductor plan template missing '## Verification'"
+
+
+def _load_conductor_prompt_body(cfg, repo_path) -> str:
+    """Resolve the conductor's prompt field to its actual body text.
+
+    Since plan-010, the conductor agent's `prompt` is a `{file:...}` ref
+    in opencode.json. This helper:
+    1. Reads `cfg["agent"]["conductor"]["prompt"]` (the ref string).
+    2. If it starts with `{file:`, strips the wrapper and reads the
+       referenced file's content from `repo_path`.
+    3. Otherwise returns the raw value (legacy / future inline prompts).
+    """
+    ref = cfg["agent"]["conductor"]["prompt"]
+    if isinstance(ref, str) and ref.startswith("{file:"):
+        # Strip the leading `{file:` and trailing `}`; the middle is a
+        # repo-root-relative path (e.g. `./.opencode/agents/conductor.md`).
+        path_str = ref[len("{file:"):].rstrip("}")
+        return (repo_path / path_str).read_text(encoding="utf-8")
+    return ref
 
 
 def test_workflow_can_move_plan_to_completed(fake_plan, tmp_path):
