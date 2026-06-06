@@ -157,7 +157,7 @@ echo [4/7] Configuring opencode.json...
 
 if exist "%TARGET_DIR%opencode.json" (
     echo  Project already has opencode.json -- merging agent block...
-    :: Single-line Python merge to avoid batch parenthesis issues
+    REM Single-line Python merge to avoid batch parenthesis issues
     "!PY!" -c "import json, sys; src = json.load(open(r'%SCRIPT_DIR%opencode.json', encoding='utf-8')); tgt_file = r'%TARGET_DIR%opencode.json'; tgt = json.load(open(tgt_file, encoding='utf-8')); tgt['agent'] = src['agent']; tgt['instructions'] = list(set(tgt.get('instructions', []) + ['AGENTS.md'])); tgt.setdefault('skills', {}).setdefault('paths', []); [tgt['skills']['paths'].append(p) for p in ['.opencode/skills'] if p not in tgt['skills']['paths']]; json.dump(tgt, open(tgt_file, 'w', encoding='utf-8'), indent=2, ensure_ascii=False); print('  Merged: agent block copied, instructions + skills paths added')"
 ) else (
     echo  No opencode.json found -- copying standalone config...
@@ -284,23 +284,3 @@ echo  [INFO] Graph build skipped (graphify may not support --depth).
 echo  Run once opencode is open: /graphify .
 goto :eof
 
-:: ---- Summary ----
-echo ============================================
-echo  Setup complete!
-echo ============================================
-echo.
-echo  Copied to: %TARGET_DIR%
-echo.
-echo  What was installed:
-echo    - AGENTS.md  (agent workflow docs)
-echo    - opencode.json  (13 agent definitions)
-echo    - scripts\  (verify-plan.py, pre-commit hook)
-echo    - .opencode\  (skills, plans, decisions, todo)
-echo    - .gitignore
-echo    - Pre-commit hook
-echo    - Knowledge graph
-echo.
-echo  Now run: opencode .
-echo  Then:    /graphify .
-echo.
-pause

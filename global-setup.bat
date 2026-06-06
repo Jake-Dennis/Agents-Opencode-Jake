@@ -128,9 +128,9 @@ echo  Python: !PY!
 :: because the import check passes; a fresh machine gets a single install.
 ::
 :: Edge case: pip's metadata can say "already satisfied" while the import
-:: fails (e.g. someone deleted the package directory manually, or a
-:: previous install was partially completed). To recover from this, the
-:: fallback uses --force-reinstall.
+REM fails (e.g. someone deleted the package directory manually, or a
+REM previous install was partially completed). To recover from this, the
+REM fallback uses --force-reinstall.
 echo [4a/5] Checking graphify Python package...
 "!PY!" -c "import graphify" >nul 2>&1
 if !errorlevel! equ 0 (
