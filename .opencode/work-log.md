@@ -312,3 +312,24 @@ o verification tasks found). Fixed.
 - **Verify:** `python scripts/verify-plan.py .opencode/plans/plan-012-agent-tunings.md` - ALL CHECKS PASSED (9/9 verification + 5/5 mechanical). `python -m pytest tests/test_agent_safety.py -q` - 15/15 passing (T-AS-1..T-AS-15).
 - **Pre-existing failures (NOT caused by plan-012, NOT fixed):** 5 tests in the full suite fail: 3 in `test_conductor_workflow.py` (test_conductor_prompt_has_all_14_workflow_steps / test_conductor_prompt_references_all_subagents / test_conductor_prompt_has_plan_template — all check the in-JSON conductor prompt, which plan-010 moved to `.opencode/agents/conductor.md`); 1 in `test_schema.py` (likely needs the schema updated to allow the new `color`/`temperature` fields); 1 in `test_verify_plan.py::test_real_plan_001` (assertions about plan-001 may have drifted). 145/150 tests pass. These are pre-existing; deferring fixes to a future plan.
 - **Status:** Complete
+
+## 2026-06-06T16:00:00Z
+- **Task:** Plan 013 - Live progress tracking for subagents (jobs.md artifact)
+- **Agents:** @architect (design), @tester (T-JB-1..T-JB-6), @builder (apply to opencode.json), @docs (jobs.md format), conductor (verify + archive + commit)
+- **Files:**
+  - `.opencode/jobs.md` (new, ~60 lines: format header + 3 numbered rules + 1 worked example entry; auto-managed by subagents, conductor does NOT write)
+  - `.opencode/plans/plan-013-design.md` (new, 250 lines, 7 sections: 2-artifact split, format, update rules, permission matrix, prompt addition, risk analysis, implementation order)
+  - `opencode.json` (modified: 5 read-only agents gain path-scoped `edit: { ".opencode/jobs.md": "allow", "*": "deny" }`; 11 write-capable agents get a "Live progress tracking" section appended to their `prompt` field — 6 impl agents get the basic section, 5 read-only agents get the section with an "ONLY jobs.md" clarification; git agent unchanged; conductor unchanged)
+  - `tests/test_jobs.py` (new, 190 lines, 6 tests T-JB-1..T-JB-6 with 29 parametrized variants total: 1 file-exists test, 11 write-capable section test, 5 path-scoped edit test, 5 readonly "ONLY" test, 6 impl no-"ONLY" test, 1 conductor+git exclusion test)
+  - `.opencode/plans/completed/plan-013-live-progress-tracking.md` (archived)
+  - `.opencode/plans/completed/plan-013-design.md` (archived)
+- **Decisions:**
+  - **3-file ownership split (todo.md / work-log.md / jobs.md):** conductor owns the first two (high-level checklist + append-only log); 11 subagents own jobs.md (fine-grained live status). Conductor does NOT write to jobs.md — confirmed by T-JB-5 reading `.opencode/agents/conductor.md` and verifying "Live progress tracking" is absent.
+  - **Path-scoped `edit` for the 5 read-only agents (new pattern):** mirrors the git agent's `bash: { "git *": "allow", "*": "deny" }` pattern. The `*` glob catches everything else and denies. The exact path `.opencode/jobs.md` is the only allowed file for these 5 agents.
+  - **Section text = ~600 chars per agent (642 for impl, 724 for read-only):** small enough to not bloat the prompt, large enough to include the 3 rules and a pointer to the canonical format in jobs.md.
+  - **Risk 1 (path-glob syntax) acknowledged but unverified in this plan:** the architect's design section 6 noted the upstream `permission.edit` glob syntax is undocumented; plan-013 used the literal-path form `.opencode/jobs.md` matching the project's existing convention. A follow-up plan may need to investigate `**/.opencode/jobs.md` or other glob forms if opencode rejects the literal path at runtime.
+  - **2 plan-file bugs caught and fixed during L3 verify:**
+    1. **#3 verify command was multi-line Python inside `python -c "..."`** — `for a in...: ...` with embedded newlines. The `-c` flag doesn't support multi-line statements. Replaced with a single-line list comprehension: `missing=[a for a in all_a if 'Live progress tracking' not in str(c['agent'][a].get('prompt',''))]`.
+    2. **8 unresolved cross-references** — bare `verify-plan.py` (missing `scripts/` prefix), bare `todo.md` and bare `jobs.md` (missing `.opencode/` prefix), and 5 forward-references to future files (`.opencode/jobs-archive.md` and the 2 completed/ plan-013 archive paths). Replaced with full paths or non-backticked prose.
+- **Verify:** `python scripts/verify-plan.py .opencode/plans/plan-013-live-progress-tracking.md` — ALL CHECKS PASSED (10/10 verification + 5/5 mechanical). `python -m pytest tests/test_jobs.py -q` — 29/29 passing. Full `pytest tests/` — 179/179 passing (no regressions).
+- **Status:** Complete
