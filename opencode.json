@@ -1,8 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "conductor",
-  "model": "opencode/minimax-m3-free",
-  "small_model": "opencode/minimax-m3-free",
   "enabled_providers": [
     "opencode"
   ],

@@ -19,8 +19,10 @@ def test_default_agent_exists(cfg):
 
 
 def test_all_agents_inherit_top_level_model(cfg):
-    """Agents inherit the top-level model; if set explicitly, it must match."""
-    top = cfg["model"]
+    """If project sets a top-level model, agents must match; if not, global config applies."""
+    top = cfg.get("model")
+    if top is None:
+        return  # project doesn't override; global/user model applies
     for name, entry in cfg["agent"].items():
         if "model" in entry:
             assert entry["model"] == top, \
