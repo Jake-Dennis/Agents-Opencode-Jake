@@ -129,7 +129,10 @@ if exist "%SCRIPT_DIR%scripts\verify-plan.py" (
     if exist "%SCRIPT_DIR%scripts\build_graph.py" (
         copy /Y "%SCRIPT_DIR%scripts\build_graph.py" "%TARGET_DIR%scripts\build_graph.py" >nul
     )
-    echo    scripts\ (verify-plan.py, pre-commit, install-hook.sh, build_graph.py)
+    if exist "%SCRIPT_DIR%scripts\archive-jobs.py" (
+        copy /Y "%SCRIPT_DIR%scripts\archive-jobs.py" "%TARGET_DIR%scripts\archive-jobs.py" >nul
+    )
+    echo    scripts\ (verify-plan.py, archive-jobs.py, pre-commit, install-hook.sh, build_graph.py)
 )
 
 :: .opencode/scripts/ (merge helper, graphify_refresh)
@@ -272,7 +275,7 @@ echo.
 echo  What was installed:
 echo    - AGENTS.md  (agent workflow docs)
 echo    - opencode.json  (13 agent definitions)
-echo    - scripts\  (verify-plan.py, pre-commit hook)
+echo    - scripts\  (verify-plan.py, archive-jobs.py, pre-commit hook)
 echo    - .opencode\  (skills, plans, decisions, todo)
 echo    - .gitignore
 echo    - Pre-commit hook
