@@ -648,3 +648,37 @@ def test_T_AS_15_no_temperature_AND_top_p():
     assert not bad, (
         f"agents with BOTH temperature and top_p (mutually exclusive): {bad}"
     )
+
+
+# ---------------------------------------------------------------------------
+# T-AS-16: Path-scoped permission object keys are valid paths
+# ---------------------------------------------------------------------------
+def test_T_AS_16_path_scoped_permission_keys_are_valid():
+    """Permission objects (dict form) must have valid path keys.
+    Keys must be either '*' (catch-all) or a valid relative path or command glob.
+    No absolute paths, no directory-traversal '..' escapes.
+    Values must be "allow" or "deny"."""
+    cfg = _load_config()
+    agents = cfg["agent"]
+    agents = {n: b for n, b in agents.items() if n != "conductor"}
+    bad_entries = []
+
+    for name, body in agents.items():
+        perms = body.get("permission", {})
+        for tool_key, rule in perms.items():
+            if isinstance(rule, dict):
+                for path_key, value in rule.items():
+                    # '*' (catch-all) is always valid
+                    if path_key == "*":
+                        continue
+                    # Must be a relative path (no leading / or drive letter or ..)
+                    if path_key.startswith("/") or path_key.startswith("..") or ":" in path_key:
+                        bad_entries.append(f"{name}.{tool_key}[{path_key}]")
+                    # Value must be "allow" or "deny"
+                    if value not in ("allow", "deny"):
+                        bad_entries.append(f"{name}.{tool_key}[{path_key}] = {value!r}")
+
+    assert not bad_entries, (
+        "Invalid path-scoped permission entries:\n" +
+        "\n".join(f"  {e}" for e in bad_entries)
+    )

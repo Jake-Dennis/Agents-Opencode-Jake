@@ -17,7 +17,7 @@ Run `/setup-project` — it does everything:
 1. Detects project type and language
 2. Initializes git repo if missing
 3. Runs `/graphify .` to build the knowledge graph
-4. Creates `.opencode/` structure (plans, decisions, todo, work-log)
+4. Creates `.opencode/` structure (plans, decisions, todo, work-log, jobs)
 5. Creates a `.gitignore` (graphify-out, node_modules, .env, etc.)
 6. Creates a starter `README.md` if missing
 
@@ -52,10 +52,31 @@ The conductor automatically checks `.opencode/todo.md` on startup and asks if yo
 
 ## Models
 
-All agents inherit the top-level model. Per-agent overrides are removed — change one line to switch models.
+### Model inheritance
 
-- **Model:** `opencode/minimax-m3-free` (top-level, inherited by all agents)
-- **Reasoning effort:** `max` (set in `provider.opencode.options`)
+All agents inherit the **top-level `model` key** from `opencode.json`. There are no per-agent model overrides — changing one line switches the model for every agent.
+
+| File location | Purpose |
+|---|---|
+| `opencode.json` → `model` | Top-level model (all agents inherit) |
+| `opencode.json` → `provider.opencode.options.reasoning_effort` | Reasoning effort for all agents (default: `max`) |
+
+### Model selection guidance
+
+When choosing a model for this project, consider the split between reasoning-heavy agents (conductor, planner, architect) and fast-coding agents (builder, tester, debugger).
+
+| Role | Recommended model | Rationale |
+|------|-------------------|-----------|
+| Conductor / Planner / Architect | Nemotron 3 Ultra Free | 256k context, strongest reasoning for orchestration and design |
+| Builder / Tester / Debugger (implementation) | DeepSeek V4 Flash Free | Fast response times for code generation and iteration |
+
+These recommendations are based on the project's agent taxonomy (5 read-only + 6 implementation + 1 conductor + 1 git). The top-level model setting in `opencode.json` applies to all agents uniformly; if you want per-role models, set the top-level model to the heavier model (reasoning) and use `fallback_model` per-agent for the lighter model.
+
+> **Note on `fallback_model`**: This field specifies an alternative model to use when the primary model (top-level `model`) is unavailable. It is NOT a routing mechanism for per-agent model selection. If you need different models for different agents, set the top-level model to the most capable one and use `fallback_model` for cost-sensitive agents.
+
+### Reasoning effort
+
+Set to `max` (hardcoded in `provider.opencode.options.reasoning_effort`). This is inherited by all agents because per-agent provider overrides are not set.
 
 ## Commands
 
@@ -90,6 +111,7 @@ The conductor follows a 14-step workflow for every task:
 |------|---------|
 | `.opencode/work-log.md` | Append-only log of every work cycle |
 | `.opencode/todo.md` | Persistent task checklist (cross-session) |
+| `.opencode/jobs.md` | Live subagent progress tracking (auto-managed) |
 | `.opencode/plans/plan-NNN-title.md` | Active implementation plans |
 | `.opencode/plans/completed/plan-NNN-title.md` | Verified completed plans (history) |
 | `.opencode/decisions/adr-NNN-title.md` | Architecture Decision Records |

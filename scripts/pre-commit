@@ -35,6 +35,15 @@
 set -e
 
 # -----------------------------------------------------------------------------
+# Command-timeout wrapper: uses `timeout` from coreutils if available, or no-op.
+# This prevents indefinite hangs from pytest, plan verification, etc.
+# -----------------------------------------------------------------------------
+TIMEOUT_CMD=""
+if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_CMD="timeout 120"
+fi
+
+# -----------------------------------------------------------------------------
 # Color codes — only emitted when stdout is a TTY, so redirected logs stay clean
 # -----------------------------------------------------------------------------
 if [[ -t 1 ]]; then
@@ -68,11 +77,31 @@ cd "$REPO_ROOT"
 # `python3`, then the Windows `py` launcher. The first one that resolves and
 # can run a one-liner wins. PY is unset if nothing works (we then WARN).
 # -----------------------------------------------------------------------------
+# Check if we are in a Git Bash / MSYS environment (Windows) where 'python'
+# can trigger a Windows Store redirect that hangs indefinitely.
+# 'py' (the Python launcher) does NOT trigger the store and resolves faster.
+IS_WINDOWS=0
+if uname -s | grep -qiE 'mingw|msys|cygwin' 2>/dev/null; then
+    IS_WINDOWS=1
+fi
+
 PY=""
-for candidate in python python3 py; do
-    if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
-        PY="$candidate"
-        break
+# On Windows, try 'py' first (Python launcher, no store redirect).
+# Then 'python' (might trigger store), then 'python3' (uncommon on Windows).
+CANDIDATES="python python3 py"
+if [[ $IS_WINDOWS -eq 1 ]]; then
+    CANDIDATES="py python python3"
+fi
+
+for candidate in $CANDIDATES; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+        # Use a short timeout to detect hangs (e.g., Windows Store stub)
+        if PYTHON_TEST=$("$candidate" -c "import sys; sys.exit(0)" 2>&1); then
+            PY="$candidate"
+            break
+        fi
+        # If the candidate returned non-zero, it might be the store stub.
+        # Without timeout(1) available, fall through to next candidate.
     fi
 done
 
@@ -169,7 +198,7 @@ elif ! "$PY" -c "import pytest" 2>/dev/null; then
 else
     # Run pytest, capture both output and exit code without aborting under set -e
     set +e
-    PYTEST_OUTPUT=$("$PY" -m pytest tests/test_setup.py tests/test_agents_v2.py tests/test_integration.py tests/test_schema.py tests/test_conductor_workflow.py 2>&1)
+    PYTEST_OUTPUT=$($TIMEOUT_CMD "$PY" -m pytest tests/test_setup.py tests/test_agents_v2.py tests/test_integration.py tests/test_schema.py tests/test_conductor_workflow.py 2>&1)
     PYTEST_RC=$?
     set -e
     # Echo captured output so the user sees pytest's results
@@ -223,7 +252,7 @@ if [[ -n "$ALL_PLANS" ]]; then
         if ! git diff --cached --name-only | grep -q "^$plan\$"; then
             continue
         fi
-        if "$PY" scripts/verify-plan.py "$plan" >/dev/null 2>&1; then
+        if ${TIMEOUT_CMD:-} "$PY" scripts/verify-plan.py "$plan" >/dev/null 2>&1; then
             echo -e "  ${GREEN}OK${RESET}  $plan"
         else
             echo -e "  ${RED}FAIL${RESET}  $plan"

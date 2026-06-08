@@ -256,5 +256,17 @@
   },
   "instructions": [
     "AGENTS.md"
+  ],
+  "disabled_providers": [
+    "openai",
+    "anthropic",
+    "google",
+    "azure",
+    "cohere",
+    "groq",
+    "openrouter",
+    "gemini",
+    "mistral",
+    "together"
   ]
 }

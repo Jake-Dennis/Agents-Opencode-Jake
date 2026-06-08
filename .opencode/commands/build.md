@@ -1,8 +1,21 @@
 ---
 description: Execute all plans to completion. Continuously builds, tests, verifies, and archives each plan in a loop until every plan is done.
+dry-run: Pass `--dry-run` to preview which plans would execute (scan only, no changes made).
 ---
 
+## Full Mode (default)
+
 Enter BUILD LOOP mode. Your goal: execute ALL plans in .opencode/plans/ to completion. Do NOT stop until every plan is archived to .opencode/plans/completed/. Follow this exact loop:
+
+## Dry-Run Mode (`/build --dry-run`)
+
+Previews which plans would execute without making any changes:
+1. SCAN — list all files in `.opencode/plans/` that are NOT in `completed/`
+2. For each plan, print its NNN number, title, status, and incomplete tasks
+3. Never execute, build, test, or modify anything
+4. Print a summary: "X plans would execute, Y tasks remaining"
+
+After the dry-run, exit immediately (do NOT loop).
 
 1. SCAN — list all files in .opencode/plans/ that are NOT in the completed/ subfolder. Read each one and check its Status line.
 2. CHECK — if no in-progress plans remain, break the loop and go to step 9.
