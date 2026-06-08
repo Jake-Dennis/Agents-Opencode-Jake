@@ -1,0 +1,22 @@
+[project]
+name = "agents-opencode-jake"
+version = "0.1.0"
+description = "A collection of specialized agents orchestrated by a conductor, backed by a persistent knowledge graph"
+requires-python = ">=3.11"
+
+[tool.mutmut]
+paths = ["scripts/", "tests/"]
+backup = false
+runner = "python -m pytest"
+tests_dir = "tests"
+dict_safe = true
+exclude_lines = [
+    "import json",
+    "from pathlib import Path",
+    "import subprocess",
+    "def main():",
+    'if __name__ == "__main__":',
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -48,6 +48,7 @@
       "required": ["description", "mode", "prompt"],
       "properties": {
         "model": { "type": "string", "pattern": "^[a-z0-9_-]+/[a-z0-9_.-]+$" },
+        "variant": { "type": "string", "minLength": 1 },
         "fallback_model": { "type": "string", "pattern": "^[a-z0-9_-]+/[a-z0-9_.-]+$" },
         "description": { "type": "string", "minLength": 20 },
         "mode": { "enum": ["primary", "subagent", "all"] },

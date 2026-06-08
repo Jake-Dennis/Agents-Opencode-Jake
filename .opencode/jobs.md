@@ -1,7 +1,7 @@
 # Jobs (live progress)
 
 > Auto-managed by subagents. Do not edit by hand. See
-> `.opencode/plans/plan-013-design.md` for the design and
+> `.opencode/plans/completed/plan-013-design.md` for the design and
 > `.opencode/plans/completed/plan-013-live-progress-tracking.md` for
 > the implementation plan.
 
