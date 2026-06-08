@@ -34,3 +34,6 @@ __pycache__/
 *.py[cod]
 *.pyo
 tests/__pycache__/
+
+# Debug dumps from OpenCode
+opencode-debug-*/
