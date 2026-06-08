@@ -20,7 +20,7 @@
     "graphify": {
       "type": "local",
       "command": [
-        "python3",
+        "python",
         "-m",
         "graphify.serve",
         "graphify-out/graph.json"
