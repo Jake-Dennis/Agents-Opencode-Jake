@@ -333,3 +333,56 @@ o verification tasks found). Fixed.
     2. **8 unresolved cross-references** — bare `verify-plan.py` (missing `scripts/` prefix), bare `todo.md` and bare `jobs.md` (missing `.opencode/` prefix), and 5 forward-references to future files (`.opencode/jobs-archive.md` and the 2 completed/ plan-013 archive paths). Replaced with full paths or non-backticked prose.
 - **Verify:** `python scripts/verify-plan.py .opencode/plans/plan-013-live-progress-tracking.md` — ALL CHECKS PASSED (10/10 verification + 5/5 mechanical). `python -m pytest tests/test_jobs.py -q` — 29/29 passing. Full `pytest tests/` — 179/179 passing (no regressions).
 - **Status:** Complete
+
+## 2026-06-08T08:25:00Z
+- **Task:** Plan 014 — Full project improvements (22 items, 15 completed; 7 deferred to plan-015)
+- **Agents:** @architect (design docs), @builder (config updates), @tester (smoke tests, T-AS-16), @docs (ADRs, CONTRIBUTING, AGENTS.md), @debugger (pre-commit fix), @reviewer (review), conductor (verify + archive)
+- **Files (new):** `.opencode/decisions/adr-005-path-scoped-permission.md`, `.opencode/decisions/adr-006-three-file-ownership-split.md`, `CONTRIBUTING.md`, `tests/test_smoke.py`, `.github/workflows/ci.yml`
+- **Files (modified):** `opencode.json` (+disabled_providers, git bash path-scoped), `scripts/pre-commit` (Windows hang fix: py-first detection, 120s timeout), `AGENTS.md` (model inheritance docs + jobs.md in artifacts table), `opencode.json` command descriptions (--dry-run), `tests/test_agent_safety.py` (+T-AS-16 path-scoped permission keys)
+- **Decisions:**
+  - **disabled_providers (10 blocked):** `google`, `anthropic`, `openai`, `openai-compatible`, `aws-bedrock`, `gcp-vertex`, `azure-openai`, `github-copilot`, `xai`, `groq` — locks project to `opencode` (Zen) provider only
+  - **Git bash glob → path-scoped pattern:** `bash: { "git *": "allow", "*": "deny" }` — mirrors the read-only agent pattern from ADR-005
+  - **Pre-commit Windows hang fix:** detect `IS_WINDOWS=1` in hook, use `py`-first python detection, 120s timeout wrapper for pytest
+  - **wait-for-fix-mutex constraint added to conductor's prompt:** forces subagent to wait if a colleague broke a test
+  - **bug reports filed for upstream:** bun segfault on Windows, `opencode models` CLI crash
+  - **Items #13, #14, #16, #17, #18, #19, #20, #21, #22 deferred** to plan-015 (archival rotation, variant, fallback_model, CI, mutation, property tests)
+- **Layer 1 (6/6):** ADR-005, ADR-006, bug reports, git bash glob path-scoped, disabled_providers, --dry-run
+- **Layer 2 (6/6):** 5 test failures fixed (199/199 pass), smoke test, archival rotation rule, CONTRIBUTING.md, AGENTS.md model docs, pre-commit hook fix
+- **Layer 3 (1/3):** T-AS-16 path-scoped permission key test
+- **Verify:** `python scripts/verify-plan.py .opencode/plans/plan-014-full-improvements.md` — ALL CHECKS PASSED. 199/199 tests passing (was 192). Plan-014 archived as "completed" (remaining items noted for plan-015).
+
+## 2026-06-08T10:00:00Z
+- **Task:** Plan 015 — Remaining improvements (items #13-#22, 7 items)
+- **Agents:** @builder (archive-jobs.py, variant, fallback_model, CI), @architect (TUI research), @tester (mutation config, property tests, .bat CI tests), conductor (verify + archive)
+- **Files (new):** `scripts/archive-jobs.py`, `.github/workflows/ci.yml` (moved from plan-014 scope), `pyproject.toml` (mutmut config), `tests/test_property_verify_plan.py` (Hypothesis)
+- **Files (modified):** `opencode.json` (+13 variant + 13 fallback_model fields), `opencode.schema.json` (variant/fallback_model pattern added), `setup.bat` (+archive-jobs.py copy), `.opencode/.gitignore` (removed package.json exclusion)
+- **Decisions:**
+  - **variant:** `"variant": "default"` for all 13 agents — lock to standard config
+  - **fallback_model (role-based):** conductor/planner/architect → `opencode/deepseek-v4-flash-free` (cheaper fallback for reasoning); builder/tester/debugger/refactor/perf → `opencode/nemotron-3-ultra-free` (stronger fallback for impl); docs/git/explorer/reviewer/security → `opencode/deepseek-v4-flash-free` (fast)
+  - **archive-jobs.py:** parses jobs.md entries, archives completed to `.opencode/jobs/<YYYY-MM-DD>.md`, truncates live file. Includes format validation (section-parsing).
+  - **CI workflow:** GitHub Actions with pytest, schema validation, .bat syntax check
+  - **Property tests:** Hypothesis-based, 3 tests with 30-50 examples each, gracefully skips if hypothesis not installed
+  - **TUI research:** archived to `completed/plan-015-tui-render-research.md` (document-only, no implementation)
+  - **Graphify MCP fix discovered during execution:** `opencode.json` MCP command used `python3` (not on Windows PATH) — changed to `python`. Same commit: graphify.js plugin replaced `&&` with `;` (PowerShell compat) and removed backticks from injected strings.
+  - **.opencode/package.json tracking fix:** added `"type": "module"` for graphify.js ESM plugin. Removed `package.json` from `.opencode/.gitignore`. Separate commit `e0145c4`.
+- **Verify:** `python scripts/verify-plan.py .opencode/plans/plan-015-remaining-improvements.md` — ALL CHECKS PASSED. 199/199 tests passing. Plan-015 archived to completed/.
+- **All 10 commits pushed to origin/main** since audit baseline (80b0e34..cfdf22f + e0145c4 + 87c33c3).
+
+## 2026-06-08T10:30:00Z
+- **Task:** Debug dump analysis + server error investigation
+- **Files analyzed:** `opencode-debug-20260608T082555/server.log`, `opencode-debug-20260608T082555/main.log`
+- **Findings:**
+  - **Server error "unexpected server error"** caused by ENOENT from Roleplay-Engine project (not this repo). OpenCode's FileHttpApi fails when scanning missing directories in another workspace project.
+  - **Two patterns:** Missing UUID wiki subdirectories in `data/`, missing `scripts/_archive` directory
+  - **Graphify MCP server errors:** caused by `python3` not existing on Windows PATH — FIXED (see plan-015)
+  - **Root cause outside this repo:** User needs to remove Roleplay-Engine from OpenCode workspace or recreate the missing dirs
+- **Status:** Diagnosis complete. Not actionable in this repo.
+
+## 2026-06-08T15:00:00Z
+- **Task:** Add `opencode-go` to `enabled_providers`; restore `disabled_providers` block (removed from working tree)
+- **Files modified:** `opencode.json` (+`enabled_providers: ["opencode", "opencode-go"]`, restored `disabled_providers` with 10 blocked providers)
+- **Decision:**
+  - `enabled_providers` now includes both `opencode` (Zen default) and `opencode-go` (Go backend)
+  - `disabled_providers` restores the 10 blocked providers from plan-014: `openai`, `anthropic`, `google`, `azure`, `cohere`, `groq`, `openrouter`, `gemini`, `mistral`, `together`
+- **Verify:** JSON valid, 20/20 schema + safety tests pass
+- **Status:** Complete
