@@ -47,8 +47,7 @@
       },
       "color": "#5EEAD4",
       "prompt": "{file:./.opencode/agents/conductor.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 50
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "planner": {
       "description": "Planning and analysis. Analyzes requirements, designs architecture, and creates implementation plans without making any changes.",
@@ -66,8 +65,7 @@
       "color": "#A78BFA",
       "temperature": 0.2,
       "prompt": "{file:./.opencode/agents/planner.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 30
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "builder": {
       "description": "Code implementation. Writes new code and modifies existing code. Use when conductor delegates a well-scoped coding task with clear requirements.",
@@ -81,8 +79,7 @@
       },
       "color": "#34D399",
       "prompt": "{file:./.opencode/agents/builder.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 100
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "architect": {
       "description": "System design and architecture. Designs data models, API contracts, component boundaries, and system structure. Use when designing architecture, data flow, or component relationships.",
@@ -100,8 +97,7 @@
       "color": "#C4B5FD",
       "temperature": 0.2,
       "prompt": "{file:./.opencode/agents/architect.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 30
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "reviewer": {
       "description": "Code review. Reviews code for bugs, security issues, style violations, and correctness. Use when code needs review, QA, or quality check before merging.",
@@ -119,8 +115,7 @@
       "color": "#FBBF24",
       "temperature": 0.1,
       "prompt": "{file:./.opencode/agents/reviewer.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 20
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "tester": {
       "description": "Test writing. Writes unit, integration, and E2E tests. Creates test fixtures and mocks. Use when tests need to be written, updated, or debugged.",
@@ -134,8 +129,7 @@
       },
       "color": "#60A5FA",
       "prompt": "{file:./.opencode/agents/tester.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 50
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "docs": {
       "description": "Documentation. Writes README files, API documentation, inline code comments, changelogs, and technical guides.",
@@ -148,8 +142,7 @@
       },
       "color": "#F472B6",
       "prompt": "{file:./.opencode/agents/docs.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 30
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "debugger": {
       "description": "Bug fixing. Diagnoses crashes, errors, and unexpected behavior. Analyzes logs, stack traces, and reproduces issues.",
@@ -164,8 +157,7 @@
       },
       "color": "#F87171",
       "prompt": "{file:./.opencode/agents/debugger.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 40
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "refactor": {
       "description": "Code refactoring. Improves code structure, reduces duplication, enhances readability without changing behavior.",
@@ -179,8 +171,7 @@
       },
       "color": "#6EE7B7",
       "prompt": "{file:./.opencode/agents/refactor.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 50
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "git": {
       "description": "Git operations. Manages branches, commits, merges, rebases, and PRs. Writes conventional commit messages.",
@@ -196,8 +187,7 @@
       },
       "color": "#94A3B8",
       "prompt": "{file:./.opencode/agents/git.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 10
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "explorer": {
       "description": "Codebase exploration. Fast read-only search, grep, file discovery, and code navigation. Use when finding where things are or understanding code structure.",
@@ -215,8 +205,7 @@
       },
       "color": "#7DD3FC",
       "prompt": "{file:./.opencode/agents/explorer.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 20
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "security": {
       "description": "Security auditing. Scans for vulnerabilities, injection risks, auth flaws, insecure dependencies, and OWASP top-10 issues.",
@@ -235,8 +224,7 @@
       "color": "#DC2626",
       "temperature": 0.1,
       "prompt": "{file:./.opencode/agents/security.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 40
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     },
     "perf": {
       "description": "Performance optimization. Profiles code, identifies bottlenecks, optimizes algorithms, queries, and resource usage.",
@@ -251,8 +239,7 @@
       },
       "color": "#F59E0B",
       "prompt": "{file:./.opencode/agents/perf.md}",
-      "fallback_model": "opencode/deepseek-v4-flash-free",
-      "steps": 40
+      "fallback_model": "opencode/deepseek-v4-flash-free"
     }
   },
   "permission": {
