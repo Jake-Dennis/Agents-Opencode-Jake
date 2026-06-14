@@ -361,7 +361,7 @@ def test_bat_exit_b0_at_eof():
 
     Catches "Setup complete!" blocks that would be unreachable because
     they're after ``exit /b 0``. The line(s) AFTER the LAST ``exit /b 0``
-    or ``goto :eof`` should be either empty or comments only.
+    or ``goto :eof`` should be either blank or comments only.
     """
     for name in ALL_BATS:
         text = _read_bat(name)
@@ -383,4 +383,275 @@ def test_bat_exit_b0_at_eof():
             f"{name} has executable code after the last `exit /b`/`goto :eof`:\n"
             + "\n".join(f"  L{n}: {ln}" for n, ln in bad[:5])
         )
+
+
+# ---------------------------------------------------------------------
+# Undefined-variable checks (regression tests, June 2026)
+# ---------------------------------------------------------------------
+#
+# These tests catch references to variables that are never defined in the
+# .bat file.  The two regressions that prompted these tests:
+#
+#   1. global-setup.bat line 270 used ``%SCRIPT_DIR%`` which is never
+#      set in that file (it uses ``REPO_DIR`` instead).  This caused
+#      the sync_commands.py invocation to resolve to a relative path
+#      ``.opencode\scripts\sync_commands.py`` instead of the absolute
+#      path intended, silently producing no-op behaviour.
+#
+#   2. uninstall-global.bat lines 177-178 used ``%AGENT_LINK%`` and
+#      ``%SKILL_LINK%`` — variables that are never set in that file.
+#      The summary section would print empty values for these fields.
+
+# The directory-name each .bat uses for ``%~dp0``.  ``setup.bat`` calls
+# it ``SCRIPT_DIR``, all others call it ``REPO_DIR``.
+_DIR_VAR_BY_BAT = {
+    "global-setup.bat": "REPO_DIR",
+    "setup.bat": "SCRIPT_DIR",
+    "uninstall-global.bat": "REPO_DIR",
+    "uninstall.bat": "REPO_DIR",
+}
+
+# Subroutine labels that get their own ``setlocal`` scope, so variables
+# set inside them are NOT available in the main body (they propagate
+# only via explicit ``endlocal & set "VAR=..."`` bridges).
+_SUBROUTINES = {
+    "global-setup.bat": ["create_junction"],
+    "setup.bat": ["build_knowledge_graph", "install_graphify_plugin"],
+    "uninstall-global.bat": ["remove_junction", "remove_dir"],
+    "uninstall.bat": ["prompt_yn", "prompt_confirm", "remove_dir", "remove_file"],
+}
+
+# cmd.exe built-in variables that are always defined (never ``set``).
+_BUILTINS = {
+    "CD", "DATE", "TIME", "RANDOM", "ERRORLEVEL", "CMDEXTVERSION",
+    "CMDCMDLINE", "PROMPT", "OS", "PROCESSOR_ARCHITECTURE",
+    "NUMBER_OF_PROCESSORS", "PATH", "PATHEXT", "SYSTEMROOT",
+    "COMSPEC", "TEMP", "TMP", "HOMEDRIVE", "HOMEPATH",
+    "USERPROFILE", "COMPUTERNAME", "USERNAME",
+}
+
+# Environment-variable overrides accepted by each .bat (documented in
+# the header comment and read via ``if "%VAR%"=="1"`` before the
+# ``set "UNATTENDED=..."`` block).  These are not set inside the file
+# — they are external inputs — so the test must not flag them.
+_ENV_OVERRIDES = {
+    "global-setup.bat": {"GLOBAL_SETUP_YES", "GLOBAL_SETUP_DRY_RUN", "GLOBAL_SETUP_FORCE"},
+    "setup.bat": {"SETUP_YES", "SETUP_DRY_RUN", "SETUP_FORCE"},
+    "uninstall-global.bat": {"GLOBAL_SETUP_YES", "GLOBAL_SETUP_DRY_RUN", "GLOBAL_SETUP_FORCE"},
+    "uninstall.bat": {"UNINSTALL_YES", "UNINSTALL_DRY_RUN", "UNINSTALL_FORCE"},
+}
+
+
+def _collect_set_vars(text: str) -> set:
+    """Collect all variables that appear as ``set "VAR=..."`` targets."""
+    import re
+    found = set()
+    for m in re.finditer(r'set\s+"(\w+)=', text):
+        found.add(m.group(1).upper())
+    for m in re.finditer(r'set\s+/[ap]\s+"?(\w+)', text):
+        found.add(m.group(1).upper())
+    for m in re.finditer(r'set\s+/[ap]\s+(\w+)', text):
+        found.add(m.group(1).upper())
+    return found
+
+
+def _collect_for_vars(text: str) -> set:
+    """Collect ``%%A``-style FOR variables (case-insensitive)."""
+    import re
+    found = set()
+    for m in re.finditer(r'%%(\w)', text):
+        found.add(m.group(1).upper())
+    return found
+
+
+def _parse_subroutine_boundaries(text: str) -> dict:
+    """Return ``{label: start_line_idx}`` for each ``:label`` subroutine."""
+    starts = {}
+    for i, line in enumerate(text.splitlines()):
+        stripped = line.strip()
+        if stripped.startswith(":") and not stripped.startswith("::"):
+            label = stripped.split()[0].lstrip(":")
+            starts[label] = i
+    return starts
+
+
+def _vars_in_subroutine(text: str, label: str, boundaries: dict) -> set:
+    """Collect SET-variable names defined inside a subroutine body."""
+    import re
+    start = boundaries[label] + 1
+    # Subroutine ends at next label or EOF
+    lines = text.splitlines()
+    end = len(lines)
+    for i in range(start, len(lines)):
+        stripped = lines[i].strip()
+        if stripped.startswith(":") and not stripped.startswith("::"):
+            end = i
+            break
+    sub_lines = lines[start:end]
+    found = set()
+    for line in sub_lines:
+        m = re.search(r'set\s+"(\w+)=', line)
+        if m:
+            found.add(m.group(1).upper())
+    return found
+
+
+def _collect_echo_vars(text: str) -> list:
+    """Collect ``%VAR%`` references that appear in ``echo`` lines,
+    where printing an undefined variable would produce blank output
+    rather than a useful error.  Returns list of ``(line_num, var_name)``.
+
+    Only checks ``echo`` lines, not ``if`` lines, because ``if``
+    lines often reference external environment variables used as
+    control-flow overrides.
+    """
+    import re
+    results = []
+    for i, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if not stripped.startswith("echo"):
+            continue
+        for m in re.finditer(r'%(\w+)%', line):
+            var = m.group(1).upper()
+            # Skip well-known builtins
+            if var in _BUILTINS:
+                continue
+            results.append((i, var))
+    return results
+
+
+@pytest.mark.parametrize("bat_name", ALL_BATS)
+def test_bat_summary_refs_defined_vars(bat_name):
+    """T-BAT-VAR: every ``%VAR%`` in echo/summary lines must be defined.
+
+    Catches undefined-variable references like ``%SCRIPT_DIR%`` in
+    global-setup.bat (which uses ``REPO_DIR``) and ``%AGENT_LINK%`` /
+    ``%SKILL_LINK%`` in uninstall-global.bat.
+    """
+    text = _read_bat(bat_name)
+    dir_var = _DIR_VAR_BY_BAT[bat_name]
+    set_vars = _collect_set_vars(text)
+
+    # Also consider variables from ``endlocal & set "VAR=..."`` bridges
+    # (these propagate subroutine locals to the main scope)
+    for m in __import__("re").finditer(r'endlocal\s+&\s+set\s+"(\w+)=', text):
+        set_vars.add(m.group(1).upper())
+
+    # The ``set "REPO_DIR=%~dp0"`` or ``set "SCRIPT_DIR=%~dp0"`` form
+    # means the dir variable is always present.
+    set_vars.add(dir_var.upper())
+
+    # FOR variables like %%A are always defined by the loop header
+    for_vars = _collect_for_vars(text)
+
+    # Collect subroutine-internal vars (they're local to the subroutine
+    # and should not be referenced from the main body)
+    boundaries = _parse_subroutine_boundaries(text)
+    sub_vars = set()
+    for label in _SUBROUTINES.get(bat_name, []):
+        if label in boundaries:
+            sub_vars |= _vars_in_subroutine(text, label, boundaries)
+
+    # Find %VAR% in echo/summary lines and verify each is defined
+    echo_vars = _collect_echo_vars(text)
+    undefined = []
+    for lineno, var in echo_vars:
+        if var in _BUILTINS:
+            continue
+        if var in for_vars:
+            continue
+        # Documented env-var overrides are external inputs, not set in-file
+        if var in _ENV_OVERRIDES.get(bat_name, set()):
+            continue
+        if var not in set_vars and var not in sub_vars:
+            undefined.append((lineno, var))
+
+    assert not undefined, (
+        f"{bat_name} references undefined variables in echo/summary lines:\n"
+        + "\n".join(
+            f"  L{n}: %{v}% is never set in this file" for n, v in undefined[:10]
+        )
+    )
+
+
+@pytest.mark.parametrize("bat_name", ALL_BATS)
+def test_bat_dir_var_consistency(bat_name):
+    """T-BAT-DIR: each .bat uses exactly one directory variable for ``%~dp0``.
+
+    ``setup.bat`` uses ``SCRIPT_DIR``, all other .bat files use ``REPO_DIR``.
+    Mixing both (or referencing the wrong one) produces empty-string paths.
+    """
+    text = _read_bat(bat_name)
+    dir_var = _DIR_VAR_BY_BAT[bat_name]
+    wrong_var = "SCRIPT_DIR" if dir_var == "REPO_DIR" else "REPO_DIR"
+
+    # The wrong variable name must not appear ANYWHERE in the file.
+    # (We check raw text, not just %VAR% references, because even a
+    # comment mentioning SCRIPT_DIR in a REPO_DIR file is a sign of
+    # copy-paste drift.)
+    assert wrong_var not in text, (
+        f"{bat_name} uses {dir_var} for %~dp0 but also references "
+        f"{wrong_var} — this is a copy-paste error that produces "
+        f"empty-string paths at runtime"
+    )
+
+
+def test_global_setup_bat_always_rewrites_agent_paths():
+    """T-BAT-PATH: global-setup.bat rewrites {file:} paths in BOTH junction
+    and copy cases.
+
+    Regression: the original step 4c only ran when the junction failed,
+    leaving {file:./.opencode/agents/...} paths in the global config when
+    the junction succeeded. Opencode resolves these relative to the global
+    config directory, not the repo root, producing 'bad file reference' errors.
+
+    The fix makes step 4c unconditional: junction -> rewrite to
+    {file:./agents/Agents-Opencode-Jake/...}, copy -> rewrite to
+    {file:./agents/...}.
+    """
+    text = _read_bat("global-setup.bat")
+    lines = text.splitlines()
+
+    # Find the step 4c section (between "Step 4c" comment and "Step 4d" comment)
+    step_4c_start = -1
+    step_4c_end = len(lines)
+    for i, line in enumerate(lines):
+        if "Step 4c" in line and "Fix" in line:
+            step_4c_start = i
+        elif step_4c_start > 0 and "Step 4d" in line:
+            step_4c_end = i
+            break
+
+    assert step_4c_start > 0, "global-setup.bat missing step 4c comment"
+    step_4c_text = "\n".join(lines[step_4c_start:step_4c_end])
+
+    # Step 4c must handle the "created" case (junction succeeded)
+    assert '"%AGENT_J_RESULT%"=="created"' in step_4c_text, (
+        "global-setup.bat step 4c must handle junction-created case"
+    )
+
+    # Step 4c must rewrite paths for junction case
+    assert "{file:./agents/Agents-Opencode-Jake/" in step_4c_text, (
+        "global-setup.bat must rewrite paths to {file:./agents/Agents-Opencode-Jake/...} "
+        "when junction is created"
+    )
+
+    # Step 4c must handle the "copy" case (copy fallback)
+    assert '"%AGENT_J_RESULT%"=="copy"' in step_4c_text, (
+        "global-setup.bat step 4c must handle copy-fallback case"
+    )
+
+    # Step 4c must rewrite paths for copy case
+    assert "{file:./agents/" in step_4c_text, (
+        "global-setup.bat must rewrite paths to {file:./agents/...} "
+        "when copy fallback is used"
+    )
+
+    # The old conditional (skip when created) must NOT be in step 4c
+    # (It may still exist in the summary section for display purposes)
+    old_skip = 'if not "%AGENT_J_RESULT%"=="created" if not "%AGENT_J_RESULT%"=="copy"'
+    assert old_skip not in step_4c_text, (
+        "global-setup.bat step 4c must run unconditionally — the old "
+        "conditional that skipped rewriting when junction succeeded is removed"
+    )
 

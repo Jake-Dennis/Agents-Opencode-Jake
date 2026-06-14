@@ -240,25 +240,27 @@ echo.
 :: ---- Step 4c: Fix {file:...} paths for global config ----
 :: The merge helper copies {file:...} references verbatim from the project
 :: config. For the global config, paths like {file:./.opencode/agents/...}
-:: resolve relative to %CONFIG_DIR%, not the project. If the agent junction
-:: failed (admin rights), we copy the .md files to the global agents dir
-:: and update the paths.
-if not "%AGENT_J_RESULT%"=="created" if not "%AGENT_J_RESULT%"=="copy" (
-    echo [4c/5] Fixing agent file references for global config...
-    set "AGENT_MD_SRC=%REPO_DIR%.opencode\agents"
-    set "AGENT_MD_DST=%AGENTS_DIR%"
-    if not exist "!AGENT_MD_DST!" mkdir "!AGENT_MD_DST!" 2>nul
-    robocopy "!AGENT_MD_SRC!" "!AGENT_MD_DST!" /E /R:0 /W:0 /NJH /NJS /NDL >nul 2>&1
-    if !errorlevel! lss 8 (
-        echo  [OK] agent files copied to !AGENT_MD_DST!
-        REM Update {file:...} paths in global config
-        "!PY!" -c "path=r'%GLOBAL_CONFIG%';c=open(path,encoding='utf-8').read();c=c.replace('{file:./.opencode/agents/','{file:./agents/');open(path,'w',encoding='utf-8').write(c);print('  [OK] paths updated')"
-    ) else (
-        echo  [WARN] could not copy agent files to global agents dir.
-        echo         Try re-running as Admin to fix.
-    )
-    echo.
+:: resolve relative to %CONFIG_DIR%, not the project. We must rewrite
+:: them to match the actual location of agent .md files.
+::
+:: - Junction succeeded: files at %AGENTS_DIR%\Agents-Opencode-Jake\...
+::   Rewrite to {file:./agents/Agents-Opencode-Jake/...}
+:: - Copy fallback: files copied to %AGENTS_DIR%\...
+::   Rewrite to {file:./agents/...}
+:: - Both failed: no agent files available, paths left as-is (will error)
+echo [4c/5] Fixing agent file references for global config...
+if "%AGENT_J_RESULT%"=="created" (
+    REM Junction: agents at %AGENTS_DIR%\Agents-Opencode-Jake\
+    REM Rewrite {file:./.opencode/agents/X} -> {file:./agents/Agents-Opencode-Jake/X}
+    "!PY!" -c "path=r'%GLOBAL_CONFIG%';c=open(path,encoding='utf-8').read();c=c.replace('{file:./.opencode/agents/','{file:./agents/Agents-Opencode-Jake/');open(path,'w',encoding='utf-8').write(c);print('  [OK] paths rewritten for junction')"
+) else if "%AGENT_J_RESULT%"=="copy" (
+    REM Copy fallback: agents copied to %AGENTS_DIR%\ directly
+    REM Rewrite {file:./.opencode/agents/X} -> {file:./agents/X}
+    "!PY!" -c "path=r'%GLOBAL_CONFIG%';c=open(path,encoding='utf-8').read();c=c.replace('{file:./.opencode/agents/','{file:./agents/');open(path,'w',encoding='utf-8').write(c);print('  [OK] paths rewritten for copy')"
+) else (
+    echo  [SKIP] agent files not available, paths left as-is
 )
+echo.
 
 :: ---- Step 4d: Sync global commands from .opencode/commands/*.md ----
 :: The merge helper does not handle the "command" block. We read each
@@ -267,7 +269,7 @@ set "CMD_COUNT=0"
 for /f %%F in ('dir /b "%REPO_DIR%.opencode\commands\*.md" 2^>nul') do set /a CMD_COUNT+=1
 if %CMD_COUNT% gtr 0 (
     echo [4d/5] Syncing commands to global config...
-    "!PY!" "%SCRIPT_DIR%.opencode\scripts\sync_commands.py" "%REPO_DIR%" "%GLOBAL_CONFIG%"
+    "!PY!" "%REPO_DIR%.opencode\scripts\sync_commands.py" "%REPO_DIR%" "%GLOBAL_CONFIG%"
     echo.
 )
 

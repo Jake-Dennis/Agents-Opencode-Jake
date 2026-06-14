@@ -132,10 +132,10 @@ if !REMOVED_COUNT! gtr 0 (
 )
 echo.
 
-:: ---- Step 2.5: Remove global commands ----
+:: ---- Step 3: Remove global commands ----
 echo [3/6] Removing installed commands...
-if exist "%SCRIPT_DIR%.opencode\scripts\remove_commands.py" (
-    "!PY!" "%SCRIPT_DIR%.opencode\scripts\remove_commands.py" "%GLOBAL_CONFIG%"
+if exist "%REPO_DIR%.opencode\scripts\remove_commands.py" (
+    "!PY!" "%REPO_DIR%.opencode\scripts\remove_commands.py" "%GLOBAL_CONFIG%"
 ) else (
     echo  [SKIP] remove_commands.py not found
 )
@@ -174,8 +174,8 @@ if "%MERGE_DID_RUN%"=="1" (
 ) else (
     echo  opencode.jsonc: untouched - no manifest.
 )
-echo  Agent junction:   %AGENT_LINK%
-echo  Skill junction:   %SKILL_LINK%
+echo  Agents directory: %AGENTS_DIR%
+echo  Skills directory: %SKILLS_DIR%
 echo.
 echo  Agents-Opencode-Jake removed from global config.
 echo.
