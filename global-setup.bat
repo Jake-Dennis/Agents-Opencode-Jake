@@ -79,9 +79,9 @@ if not errorlevel 1 set "HAS_AGENT_KEY=1"
 if %AGENT_MD_COUNT% gtr 0 (
     set "AGENT_LINK=%AGENTS_DIR%\Agents-Opencode-Jake"
     set "AGENT_TARGET=%REPO_DIR%.opencode\agents"
-    call :create_junction "%AGENT_LINK%" "%AGENT_TARGET%" "agent"
+    call :create_junction "!AGENT_LINK!" "!AGENT_TARGET!" "agent"
     REM Save agent result before skill junction overwrites J_RESULT
-    set "AGENT_J_RESULT=%J_RESULT%"
+    set "AGENT_J_RESULT=!J_RESULT!"
 ) else if %HAS_AGENT_KEY%==1 (
     echo  [INFO] No .opencode\agents\*.md files — agents are in opencode.json,
     echo         will merge into global config.
@@ -228,13 +228,14 @@ if not "%AGENT_J_RESULT%"=="created" if not "%AGENT_J_RESULT%"=="copy" (
     echo [4c/5] Fixing agent file references for global config...
     set "AGENT_MD_SRC=%REPO_DIR%.opencode\agents"
     set "AGENT_MD_DST=%AGENTS_DIR%"
-    xcopy /Y "!AGENT_MD_SRC!\*.md" "!AGENT_MD_DST!\" >nul 2>&1
-    if !errorlevel! equ 0 (
-        echo  [OK] agent .md files copied to !AGENT_MD_DST!
+    if not exist "!AGENT_MD_DST!" mkdir "!AGENT_MD_DST!" 2>nul
+    robocopy "!AGENT_MD_SRC!" "!AGENT_MD_DST!" /E /R:0 /W:0 /NJH /NJS /NDL >nul 2>&1
+    if !errorlevel! lss 8 (
+        echo  [OK] agent files copied to !AGENT_MD_DST!
         REM Update {file:...} paths in global config
         "!PY!" -c "path=r'%GLOBAL_CONFIG%';c=open(path,encoding='utf-8').read();c=c.replace('{file:./.opencode/agents/','{file:./agents/');open(path,'w',encoding='utf-8').write(c);print('  [OK] paths updated')"
     ) else (
-        echo  [WARN] could not copy agent .md files to global agents dir.
+        echo  [WARN] could not copy agent files to global agents dir.
         echo         Try re-running as Admin to fix.
     )
     echo.
@@ -258,8 +259,8 @@ for /d %%D in ("%REPO_DIR%.opencode\skills\*") do (
     set "SK_DST=%SKILLS_DIR%\%%~nD"
     if not exist "!SK_DST!\SKILL.md" if exist "%%~fD\SKILL.md" (
         echo [4e/5] Copying skill %%~nD...
-        if not exist "!SK_DST!" mkdir "!SK_DST!" 2>nul
-        xcopy /Y "%%~fD\*" "!SK_DST!\" >nul 2>&1
+        rd /s /q "!SK_DST!" 2>nul
+        robocopy "%%~fD" "!SK_DST!" /E /R:0 /W:0 /NJH /NJS /NDL >nul 2>&1
     )
 )
 
@@ -284,9 +285,13 @@ echo ============================================
 echo  Global install complete!
 echo ============================================
 echo.
-if %AGENT_MD_COUNT% gtr 0 (
-    echo  Agents linked: %AGENTS_DIR%\Agents-Opencode-Jake -^> .opencode\agents\
-) else (
+if "%AGENT_J_RESULT%"=="created" (
+    echo  Agents junctioned: %AGENTS_DIR%\Agents-Opencode-Jake -^> .opencode\agents\
+)
+if "%AGENT_J_RESULT%"=="copy" (
+    echo  Agents copied:    %AGENTS_DIR%\Agents-Opencode-Jake (live updates require Admin)
+)
+if not "%AGENT_J_RESULT%"=="created" if not "%AGENT_J_RESULT%"=="copy" (
     echo  Agents merged into: %GLOBAL_CONFIG%
 )
 echo  Skills linked: %SKILLS_DIR%\graphify-agent-workflow
@@ -347,11 +352,11 @@ if !errorlevel! equ 0 (
     echo  [OK] %J_LABEL% junction: %J_LINK% -^> %J_TARGET%
     set "J_RESULT=created"
 ) else (
-    echo  [WARN] %J_LABEL% mklink failed - admin? Falling back to xcopy...
-    if not exist "%J_LINK%" mkdir "%J_LINK%" 2>nul
-    xcopy /E /I /Y "%J_TARGET%" "%J_LINK%" >nul 2>&1
-    if !errorlevel! equ 0 (
-        echo  [OK] %J_LABEL% copied: %J_LINK%
+    echo  [WARN] %J_LABEL% mklink failed - admin? Falling back to robocopy...
+    rd /s /q "%J_LINK%" 2>nul
+    robocopy "%J_TARGET%" "%J_LINK%" /E /R:0 /W:0 /NJH /NJS /NDL >nul 2>&1
+    if !errorlevel! lss 8 (
+        echo  [OK] %J_LABEL% mirrored: %J_LINK%
         set "J_RESULT=copy"
     ) else (
         echo  [WARN] %J_LABEL% copy also failed.

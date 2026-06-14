@@ -105,16 +105,31 @@ if exist "%MANIFEST%" (
 )
 echo.
 
-:: ---- Step 2: Remove agent .md files from global agents dir ----
+:: ---- Step 2: Remove agent files from global agents dir ----
 echo [2/6] Removing agent files...
 set "REMOVED_COUNT=0"
-for /d %%D in ("%REPO_DIR%.opencode\agents\*") do (
-    if exist "%AGENTS_DIR%\%%~nD.md" (
-        del /f "%AGENTS_DIR%\%%~nD.md" >nul 2>&1
+
+:: Remove the junction directory (if created by mklink)
+rd /s /q "%AGENTS_DIR%\Agents-Opencode-Jake" 2>nul
+if exist "%AGENTS_DIR%\Agents-Opencode-Jake" (
+    echo  [WARN] could not remove junction — try running as Admin
+) else if not "%FORCE%"=="1" (
+    echo  Removed: Agents-Opencode-Jake junction
+)
+
+:: Remove the shared/ subdirectory (if copy fallback was used)
+rd /s /q "%AGENTS_DIR%\shared" 2>nul
+
+:: Remove individual agent .md files (if copy fallback was used)
+for %%A in (conductor planner builder architect reviewer tester docs debugger refactor git explorer security perf) do (
+    if exist "%AGENTS_DIR%\%%A.md" (
+        del /f "%AGENTS_DIR%\%%A.md" >nul 2>&1
         set /a REMOVED_COUNT+=1
     )
 )
-echo  Removed !REMOVED_COUNT! agent files from %AGENTS_DIR%
+if !REMOVED_COUNT! gtr 0 (
+    echo  Removed !REMOVED_COUNT! agent files from %AGENTS_DIR%
+)
 echo.
 
 :: ---- Step 2.5: Remove global commands ----
