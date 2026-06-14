@@ -227,13 +227,12 @@ echo.
 if not "%AGENT_J_RESULT%"=="created" if not "%AGENT_J_RESULT%"=="copy" (
     echo [4c/5] Fixing agent file references for global config...
     set "AGENT_MD_SRC=%REPO_DIR%.opencode\agents"
-    set "AGENT_MD_DST=%AGENTS_DIR%\Agents-Opencode-Jake"
-    if not exist "!AGENT_MD_DST!" mkdir "!AGENT_MD_DST!" 2>nul
+    set "AGENT_MD_DST=%AGENTS_DIR%"
     xcopy /Y "!AGENT_MD_SRC!\*.md" "!AGENT_MD_DST!\" >nul 2>&1
     if !errorlevel! equ 0 (
         echo  [OK] agent .md files copied to !AGENT_MD_DST!
         REM Update {file:...} paths in global config
-        "!PY!" -c "path=r'%GLOBAL_CONFIG%';c=open(path,encoding='utf-8').read();c=c.replace('{file:./.opencode/agents/','{file:./agents/Agents-Opencode-Jake/');open(path,'w',encoding='utf-8').write(c);print('  [OK] paths updated')"
+        "!PY!" -c "path=r'%GLOBAL_CONFIG%';c=open(path,encoding='utf-8').read();c=c.replace('{file:./.opencode/agents/','{file:./agents/');open(path,'w',encoding='utf-8').write(c);print('  [OK] paths updated')"
     ) else (
         echo  [WARN] could not copy agent .md files to global agents dir.
         echo         Try re-running as Admin to fix.

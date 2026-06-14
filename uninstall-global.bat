@@ -105,16 +105,16 @@ if exist "%MANIFEST%" (
 )
 echo.
 
-:: ---- Step 2: Remove agent junction + copied .md files ----
+:: ---- Step 2: Remove agent .md files from global agents dir ----
 echo [2/6] Removing agent files...
-set "AGENT_LINK=%AGENTS_DIR%\Agents-Opencode-Jake"
-set "AGENT_TARGET=%REPO_DIR%.opencode\agents"
-call :remove_junction "%AGENT_LINK%" "%AGENT_TARGET%" "agent"
-REM If junction removal skipped (not a reparse point), remove directory directly
-if "%J_RESULT%"=="skip" if exist "%AGENT_LINK%" (
-    echo  [INFO] agent path is not a junction — cleaning directory directly...
-    call :remove_dir "%AGENT_LINK%" "%AGENTS_DIR%\Agents-Opencode-Jake"
+set "REMOVED_COUNT=0"
+for /d %%D in ("%REPO_DIR%.opencode\agents\*") do (
+    if exist "%AGENTS_DIR%\%%~nD.md" (
+        del /f "%AGENTS_DIR%\%%~nD.md" >nul 2>&1
+        set /a REMOVED_COUNT+=1
+    )
 )
+echo  Removed !REMOVED_COUNT! agent files from %AGENTS_DIR%
 echo.
 
 :: ---- Step 2.5: Remove global commands ----
