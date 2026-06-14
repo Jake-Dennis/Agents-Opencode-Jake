@@ -95,11 +95,16 @@ if %AGENT_MD_COUNT% gtr 0 (
 )
 echo.
 
-:: ---- Step 3: Skill junction ----
-echo [3/5] Skill junction...
-set "SKILL_LINK=%SKILLS_DIR%\graphify-agent-workflow"
-set "SKILL_TARGET=%REPO_DIR%.opencode\skills\graphify-agent-workflow"
-call :create_junction "%SKILL_LINK%" "%SKILL_TARGET%" "skill"
+:: ---- Step 3: Skill junctions ----
+echo [3/5] Skill junctions...
+set "SKILL_COUNT=0"
+for /d %%D in ("%REPO_DIR%.opencode\skills\*") do (
+    call :create_junction "%SKILLS_DIR%\%%~nD" "%%~fD" "skill"
+    set /a SKILL_COUNT+=1
+)
+if !SKILL_COUNT! equ 0 (
+    echo  [INFO] No skill directories to link
+)
 echo.
 
 :: ---- Step 4: opencode.jsonc merge ----
@@ -245,6 +250,18 @@ if %CMD_COUNT% gtr 0 (
     echo [4d/5] Syncing commands to global config...
     "!PY!" "%SCRIPT_DIR%.opencode\scripts\sync_commands.py" "%REPO_DIR%" "%GLOBAL_CONFIG%"
     echo.
+)
+
+:: ---- Step 4e: Fallback: copy skill files when junction fails ----
+:: If the skill junction failed (no admin), copy .md files directly.
+for /d %%D in ("%REPO_DIR%.opencode\skills\*") do (
+    set "SK_NAME=%%~nD"
+    set "SK_DST=%SKILLS_DIR%\%%~nD"
+    if not exist "!SK_DST!\SKILL.md" if exist "%%~fD\SKILL.md" (
+        echo [4e/5] Copying skill %%~nD...
+        if not exist "!SK_DST!" mkdir "!SK_DST!" 2>nul
+        xcopy /Y "%%~fD\*" "!SK_DST!\" >nul 2>&1
+    )
 )
 
 :: ---- Step 5: Final summary ----

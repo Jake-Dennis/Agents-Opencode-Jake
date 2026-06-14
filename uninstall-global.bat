@@ -126,11 +126,11 @@ if exist "%SCRIPT_DIR%.opencode\scripts\remove_commands.py" (
 )
 echo.
 
-:: ---- Step 3: Remove skill junction ----
-echo [4/5] Removing skill junction...
-set "SKILL_LINK=%SKILLS_DIR%\graphify-agent-workflow"
-set "SKILL_TARGET=%REPO_DIR%.opencode\skills\graphify-agent-workflow"
-call :remove_junction "%SKILL_LINK%" "%SKILL_TARGET%" "skill"
+:: ---- Step 4: Remove skill junctions ----
+echo [4/5] Removing skill junctions...
+for /d %%D in ("%REPO_DIR%.opencode\skills\*") do (
+    call :remove_junction "%SKILLS_DIR%\%%~nD" "%%~fD" "skill"
+)
 echo.
 
 :: ---- Step 5: Final summary ----
