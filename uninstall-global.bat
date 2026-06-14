@@ -57,7 +57,7 @@ if "%UNATTENDED%"=="1" (
 )
 
 :: ---- Step 1: Surgically undo the opencode.jsonc merge via the manifest ----
-echo [1/4] Removing opencode.jsonc entries added by the installer...
+echo [1/5] Removing opencode.jsonc entries added by the installer...
 set "MERGE_DID_RUN=0"
 if exist "%MANIFEST%" (
     REM Resolve Python (try `python`, then `py`).
@@ -105,22 +105,36 @@ if exist "%MANIFEST%" (
 )
 echo.
 
-:: ---- Step 2: Remove agent junction ----
-echo [2/4] Removing agent junction...
+:: ---- Step 2: Remove agent junction + copied .md files ----
+echo [2/5] Removing agent files...
 set "AGENT_LINK=%AGENTS_DIR%\Agents-Opencode-Jake"
 set "AGENT_TARGET=%REPO_DIR%.opencode\agents"
 call :remove_junction "%AGENT_LINK%" "%AGENT_TARGET%" "agent"
+REM If junction removal skipped (not a reparse point), remove directory directly
+if "%J_RESULT%"=="skip" if exist "%AGENT_LINK%" (
+    echo  [INFO] agent path is not a junction — cleaning directory directly...
+    call :remove_dir "%AGENT_LINK%" "%AGENTS_DIR%\Agents-Opencode-Jake"
+)
+echo.
+
+:: ---- Step 2.5: Remove global commands ----
+echo [3/5] Removing installed commands...
+if exist "%SCRIPT_DIR%.opencode\scripts\remove_commands.py" (
+    "!PY!" "%SCRIPT_DIR%.opencode\scripts\remove_commands.py" "%GLOBAL_CONFIG%"
+) else (
+    echo  [SKIP] remove_commands.py not found
+)
 echo.
 
 :: ---- Step 3: Remove skill junction ----
-echo [3/4] Removing skill junction...
+echo [4/5] Removing skill junction...
 set "SKILL_LINK=%SKILLS_DIR%\graphify-agent-workflow"
 set "SKILL_TARGET=%REPO_DIR%.opencode\skills\graphify-agent-workflow"
 call :remove_junction "%SKILL_LINK%" "%SKILL_TARGET%" "skill"
 echo.
 
-:: ---- Step 4: Final summary ----
-echo [4/4] Summary
+:: ---- Step 5: Final summary ----
+echo [5/5] Summary
 echo ============================================
 echo  Global uninstall complete!
 echo ============================================
@@ -205,4 +219,20 @@ if !errorlevel! equ 0 (
 
 :remove_done
 endlocal & set "J_RESULT=%J_RESULT%"
+goto :eof
+
+:: ---- Directory removal helper ----
+:: Args: %~1 = path to remove, %~2 = display name
+:remove_dir
+if not exist "%~1" goto :eof
+if "%DRY_RUN%"=="1" (
+    echo  [DRY-RUN] would remove: %~2
+    goto :eof
+)
+rmdir /S /Q "%~1"
+if !errorlevel! equ 0 (
+    echo  Removed: %~2
+) else (
+    echo  [WARN] Could not remove %~2 — try running as Admin.
+)
 goto :eof

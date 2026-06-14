@@ -87,7 +87,14 @@ Set to `max` (hardcoded in `provider.opencode.options.reasoning_effort`). This i
 
 ## Workflow
 
-The conductor follows a 14-step workflow for every task:
+The conductor follows a 15-step workflow — but only for action requests:
+
+### Step 0: Mode Selection (MANDATORY — run on EVERY message)
+
+Is the user asking an **informational question** (e.g., "what did we do so far?", "how does X work?", "can you check the logs?") or requesting an **action** (e.g., "implement X", "fix Y", "create Z")?
+
+- **Question mode**: Answer directly. Use `@explorer`, `@debugger`, or graphify tools for research if needed. Do NOT create plans, todo lists, or dispatch implementation agents. Skip all remaining steps.
+- **Action mode**: Proceed to step 1 below.
 
 1. **Clarify** — understand the request
 2. **Graphify** — query the knowledge graph for context

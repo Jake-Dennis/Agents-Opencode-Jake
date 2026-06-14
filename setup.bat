@@ -145,6 +145,14 @@ if exist "%SCRIPT_DIR%.opencode\scripts\opencode_jsonc_merge.py" (
     echo    .opencode\scripts\ (merge helper, graphify_refresh)
 )
 
+:: .opencode/agents/ (prompt source for {file:...} references)
+if not exist "%TARGET_DIR%.opencode\agents" mkdir "%TARGET_DIR%.opencode\agents"
+if exist "%SCRIPT_DIR%.opencode\agents\conductor.md" (
+    copy /Y "%SCRIPT_DIR%.opencode\agents\*.md" "%TARGET_DIR%.opencode\agents\" >nul
+    for /f %%F in ('dir /b "%SCRIPT_DIR%.opencode\agents\*.md" 2^>nul') do echo    .opencode\agents\%%F
+)
+echo.
+
 :: .opencode/skills/
 if not exist "%TARGET_DIR%.opencode\skills\graphify-agent-workflow" (
     mkdir "%TARGET_DIR%.opencode\skills\graphify-agent-workflow"
@@ -275,6 +283,7 @@ echo.
 echo  What was installed:
 echo    - AGENTS.md  (agent workflow docs)
 echo    - opencode.json  (13 agent definitions)
+echo    - .opencode\agents\  (conductor.md + agent prompts)
 echo    - scripts\  (verify-plan.py, archive-jobs.py, pre-commit hook)
 echo    - .opencode\  (skills, plans, decisions, todo)
 echo    - .gitignore

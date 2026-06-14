@@ -76,6 +76,7 @@ call :prompt_yn "Remove .opencode/ directory (plans, decisions, work-log)"
 if errorlevel 1 goto :step2_done
 :step2_do_remove
 
+call :remove_dir "%REPO_DIR%.opencode\agents" ".opencode\agents\"
 call :remove_dir "%REPO_DIR%.opencode\plans" ".opencode\plans\"
 call :remove_dir "%REPO_DIR%.opencode\decisions" ".opencode\decisions\"
 call :remove_dir "%REPO_DIR%.opencode\reports" ".opencode\reports\"

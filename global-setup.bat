@@ -80,12 +80,16 @@ if %AGENT_MD_COUNT% gtr 0 (
     set "AGENT_LINK=%AGENTS_DIR%\Agents-Opencode-Jake"
     set "AGENT_TARGET=%REPO_DIR%.opencode\agents"
     call :create_junction "%AGENT_LINK%" "%AGENT_TARGET%" "agent"
+    REM Save agent result before skill junction overwrites J_RESULT
+    set "AGENT_J_RESULT=%J_RESULT%"
 ) else if %HAS_AGENT_KEY%==1 (
     echo  [INFO] No .opencode\agents\*.md files — agents are in opencode.json,
     echo         will merge into global config.
+    set "AGENT_J_RESULT=skip"
 ) else (
     echo  [ERROR] Nothing to install. Repo has no .opencode\agents\*.md files
     echo          and no ^"agent^": key in opencode.json.
+    set "AGENT_J_RESULT=error"
     pause
     exit /b 1
 )
@@ -209,6 +213,40 @@ if not "%MERGE_RC%"=="0" (
 )
 echo.
 
+:: ---- Step 4c: Fix {file:...} paths for global config ----
+:: The merge helper copies {file:...} references verbatim from the project
+:: config. For the global config, paths like {file:./.opencode/agents/...}
+:: resolve relative to %CONFIG_DIR%, not the project. If the agent junction
+:: failed (admin rights), we copy the .md files to the global agents dir
+:: and update the paths.
+if not "%AGENT_J_RESULT%"=="created" if not "%AGENT_J_RESULT%"=="copy" (
+    echo [4c/5] Fixing agent file references for global config...
+    set "AGENT_MD_SRC=%REPO_DIR%.opencode\agents"
+    set "AGENT_MD_DST=%AGENTS_DIR%\Agents-Opencode-Jake"
+    if not exist "!AGENT_MD_DST!" mkdir "!AGENT_MD_DST!" 2>nul
+    xcopy /Y "!AGENT_MD_SRC!\*.md" "!AGENT_MD_DST!\" >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo  [OK] agent .md files copied to !AGENT_MD_DST!
+        REM Update {file:...} paths in global config
+        "!PY!" -c "path=r'%GLOBAL_CONFIG%';c=open(path,encoding='utf-8').read();c=c.replace('{file:./.opencode/agents/','{file:./agents/Agents-Opencode-Jake/');open(path,'w',encoding='utf-8').write(c);print('  [OK] paths updated')"
+    ) else (
+        echo  [WARN] could not copy agent .md files to global agents dir.
+        echo         Try re-running as Admin to fix.
+    )
+    echo.
+)
+
+:: ---- Step 4d: Sync global commands from .opencode/commands/*.md ----
+:: The merge helper does not handle the "command" block. We read each
+:: .opencode/commands/*.md file and add it to the global config inline.
+set "CMD_COUNT=0"
+for /f %%F in ('dir /b "%REPO_DIR%.opencode\commands\*.md" 2^>nul') do set /a CMD_COUNT+=1
+if %CMD_COUNT% gtr 0 (
+    echo [4d/5] Syncing commands to global config...
+    "!PY!" "%SCRIPT_DIR%.opencode\scripts\sync_commands.py" "%REPO_DIR%" "%GLOBAL_CONFIG%"
+    echo.
+)
+
 :: ---- Step 5: Final summary ----
 echo [5/5] Summary
 echo ============================================
@@ -285,7 +323,9 @@ if !errorlevel! equ 0 (
         echo  [OK] %J_LABEL% copied: %J_LINK%
         set "J_RESULT=copy"
     ) else (
-        echo  [ERROR] %J_LABEL% copy also failed.
+        echo  [WARN] %J_LABEL% copy also failed.
+        echo         The merge step below will handle %J_LABEL% configuration,
+        echo         so this is non-fatal. To fix junctions, re-run as Admin.
         set "J_RESULT=error"
     )
 )
