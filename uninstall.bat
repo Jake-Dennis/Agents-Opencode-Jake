@@ -125,6 +125,19 @@ echo  Python packages uninstalled.
 :step4_skip
 echo.
 
+:: ---- Step 5: Remove graphify plugin ----
+echo [5/5] Removing graphify plugin...
+where graphify >nul 2>&1
+if !errorlevel! equ 0 (
+    graphify opencode uninstall >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo  [OK] graphify plugin removed
+    )
+) else (
+    echo  [SKIP] graphify CLI not found
+)
+echo.
+
 echo ============================================
 echo  Local uninstall complete!
 echo ============================================

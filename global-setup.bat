@@ -264,6 +264,21 @@ for /d %%D in ("%REPO_DIR%.opencode\skills\*") do (
     )
 )
 
+:: ---- Step 4f: Integrate graphify opencode plugin ----
+echo [4f/5] Installing graphify OpenCode plugin...
+where graphify >nul 2>&1
+if !errorlevel! equ 0 (
+    graphify opencode install >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo  [OK] graphify plugin installed (AGENTS.md + tool.execute.before hook)
+    ) else (
+        echo  [WARN] graphify opencode install failed — run it manually
+    )
+) else (
+    echo  [SKIP] graphify CLI not found — run 'uv tool install graphifyy' first
+)
+echo.
+
 :: ---- Step 5: Final summary ----
 echo [5/5] Summary
 echo ============================================

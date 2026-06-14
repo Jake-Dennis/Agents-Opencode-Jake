@@ -57,7 +57,7 @@ if "%UNATTENDED%"=="1" (
 )
 
 :: ---- Step 1: Surgically undo the opencode.jsonc merge via the manifest ----
-echo [1/5] Removing opencode.jsonc entries added by the installer...
+echo [1/6] Removing opencode.jsonc entries added by the installer...
 set "MERGE_DID_RUN=0"
 if exist "%MANIFEST%" (
     REM Resolve Python (try `python`, then `py`).
@@ -106,7 +106,7 @@ if exist "%MANIFEST%" (
 echo.
 
 :: ---- Step 2: Remove agent junction + copied .md files ----
-echo [2/5] Removing agent files...
+echo [2/6] Removing agent files...
 set "AGENT_LINK=%AGENTS_DIR%\Agents-Opencode-Jake"
 set "AGENT_TARGET=%REPO_DIR%.opencode\agents"
 call :remove_junction "%AGENT_LINK%" "%AGENT_TARGET%" "agent"
@@ -118,7 +118,7 @@ if "%J_RESULT%"=="skip" if exist "%AGENT_LINK%" (
 echo.
 
 :: ---- Step 2.5: Remove global commands ----
-echo [3/5] Removing installed commands...
+echo [3/6] Removing installed commands...
 if exist "%SCRIPT_DIR%.opencode\scripts\remove_commands.py" (
     "!PY!" "%SCRIPT_DIR%.opencode\scripts\remove_commands.py" "%GLOBAL_CONFIG%"
 ) else (
@@ -127,14 +127,27 @@ if exist "%SCRIPT_DIR%.opencode\scripts\remove_commands.py" (
 echo.
 
 :: ---- Step 4: Remove skill junctions ----
-echo [4/5] Removing skill junctions...
+echo [4/6] Removing skill junctions...
 for /d %%D in ("%REPO_DIR%.opencode\skills\*") do (
     call :remove_junction "%SKILLS_DIR%\%%~nD" "%%~fD" "skill"
 )
 echo.
 
-:: ---- Step 5: Final summary ----
-echo [5/5] Summary
+:: ---- Step 5: Remove graphify plugin ----
+echo [5/6] Removing graphify plugin...
+where graphify >nul 2>&1
+if !errorlevel! equ 0 (
+    graphify opencode uninstall >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo  [OK] graphify plugin removed
+    )
+) else (
+    echo  [SKIP] graphify CLI not found
+)
+echo.
+
+:: ---- Step 6: Final summary ----
+echo [6/6] Summary
 echo ============================================
 echo  Global uninstall complete!
 echo ============================================

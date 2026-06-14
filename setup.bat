@@ -273,6 +273,11 @@ echo [7/7] Building knowledge graph...
 call :build_knowledge_graph
 echo.
 
+:: ---- Step 8: Install graphify OpenCode plugin ----
+echo [8/8] Installing graphify OpenCode plugin...
+call :install_graphify_plugin
+echo.
+
 :: ---- Summary ----
 echo ============================================
 echo  Setup complete!
@@ -310,5 +315,20 @@ goto :eof
 :graph_fail
 echo  [INFO] Graph build skipped (graphify may not support --depth).
 echo  Run once opencode is open: /graphify .
+goto :eof
+
+:: ---- Graphify plugin installation subroutine ----
+:install_graphify_plugin
+where graphify >nul 2>&1
+if !errorlevel! neq 0 (
+    echo  [SKIP] graphify CLI not found — run 'uv tool install graphifyy' first
+    goto :eof
+)
+graphify opencode install >nul 2>&1
+if !errorlevel! equ 0 (
+    echo  [OK] graphify plugin installed
+) else (
+    echo  [WARN] graphify opencode install failed — run it manually
+)
 goto :eof
 

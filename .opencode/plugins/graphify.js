@@ -12,13 +12,9 @@ export const GraphifyPlugin = async ({ directory }) => {
       if (!existsSync(join(directory, "graphify-out", "graph.json"))) return;
 
       if (input.tool === "bash") {
-        // Prefix the command with a knowledge graph reminder.
-        // Use semicolon (works on both Unix sh and Windows PowerShell)
-        // instead of && (which fails in PowerShell).
-        // Avoid bare `<` (redirect) in the injected text.
-        const reminder =
-          "[graphify] knowledge graph at graphify-out/. For focused questions, use: graphify query <question>";
-        output.args.command = `echo "${reminder}"; ${output.args.command}`;
+        output.args.command =
+          'echo "[graphify] knowledge graph at graphify-out/. For focused questions, run \`graphify query \"<question>\"\` (scoped subgraph, usually much smaller than GRAPH_REPORT.md) instead of grepping raw files. Read GRAPH_REPORT.md only for broad architecture context." && ' +
+          output.args.command;
         reminded = true;
       }
     },
