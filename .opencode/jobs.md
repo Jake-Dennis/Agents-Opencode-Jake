@@ -22,6 +22,19 @@ Each entry is one subagent dispatch. Use this exact shape:
 - **Notes:** <optional — blockers, decisions, links to artifacts>
 ```
 
+**Machine-parseable fields** (for `verify-plan.py` and other tooling):
+- `Status` — one of: `pending`, `in_progress`, `complete`, `failed`, `blocked`
+- `Started` — ISO 8601 timestamp
+- `Last update` — ISO 8601 timestamp
+- `Current step` — free-text one-liner
+- `Sub-steps` — checkbox list (`[x]`, `[~]`, `[ ]`)
+- `Notes` — free-text (optional)
+
+The header `## [<plan-id>] @<agent> - <task summary>` is parsed as:
+- `<plan-id>` — matches `plan-\d+` or the word `adhoc`
+- `<agent>` — must match one of the 13 agent names in `opencode.json`
+- `<task summary>` — free-text, min 10 chars
+
 **3 update rules:**
 
 1. **Start** — append a new entry. Status: `in_progress`. Started: now. Current step: 1-line description. Sub-steps: first one is `[~]`, rest are `[ ]`.

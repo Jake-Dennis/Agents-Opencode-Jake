@@ -123,17 +123,26 @@ The conductor automatically checks `.opencode/todo.md` on startup and asks if yo
 |---|---|
 | `.opencode/work-log.md` | Append-only log of every work cycle |
 | `.opencode/todo.md` | Persistent task checklist (cross-session) |
+| `.opencode/jobs.md` | Live subagent progress tracking (auto-managed) |
 | `.opencode/plans/plan-NNN-title.md` | Active implementation plans |
 | `.opencode/plans/completed/plan-NNN-title.md` | Verified completed plans (history) |
 | `.opencode/decisions/adr-NNN-title.md` | Architecture Decision Records |
+| `.opencode/agents/<name>.md` | Externalized agent prompts |
 | `graphify-out/` | Knowledge graph data (auto-managed) |
 
 ## Models
 
-All agents use a fallback chain:
+**No project-level model is set.** The `model` key is intentionally absent from `opencode.json` so that whatever model you select in the OpenCode UI at runtime is used for all agents. This avoids locking the project to a specific model that becomes stale.
 
-- **Primary:** `opencode/minimax-m3-free`
-- **Fallback:** `opencode/big-pickle`
+Each agent has a `fallback_model` that's used if the primary is unavailable:
+
+- **Fallback:** `opencode/deepseek-v4-flash-free` (all 13 agents)
+
+To pin a specific model, add `"model": "provider/model-name"` to `opencode.json`. The test `test_all_agents_inherit_top_level_model` will then verify that any per-agent `model` overrides match the top-level key, and that `fallback_model` differs from the primary.
+
+## Agent prompts
+
+All 13 agent prompts are externalized to `.opencode/agents/<name>.md` files. The `opencode.json` registry references them via `{file:./.opencode/agents/<name>.md}`, keeping the config file scannable. Shared prompt sections (honesty, consult before acting, use your tools, live progress tracking) are inline in each `.md` file for now — a future improvement may extract them into shared includes.
 
 ## Commands
 
@@ -141,6 +150,7 @@ All agents use a fallback chain:
 |---|---|
 | `/setup-project` | One-time project init: detect stack, git init, graphify build, create .opencode structure, .gitignore, README |
 | `/build` | Execute ALL plans to completion in a loop: build, test, verify, archive |
+| `/status` | Show current project status: active plans, tests, knowledge graph health, blocked items |
 
 ## Subagent cheat sheet
 

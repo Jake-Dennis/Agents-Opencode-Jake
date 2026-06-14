@@ -48,7 +48,7 @@ Address all 15 improvement opportunities identified through graph analysis, test
   - **Caveat:** structural validation only; real E2E (subprocess to `opencode run`) deferred — fast/slow split
 
 - [x] **#7 — GitHub Actions CI** (assigned: @builder, depends on #1) — DONE 2026-06-03
-  - File: `.github/workflows/test.yml` (53 lines, valid YAML)
+  - File: `.github/workflows/ci.yml` (matrix CI for ubuntu + windows)
   - Triggers: push to main, all PRs
   - Runs on: `windows-latest`, Python 3.11
   - Steps: checkout → setup-python → pip install pytest networkx jsonschema → pytest tests/
@@ -104,7 +104,7 @@ For each task, the verification step. The `python -c "..."` commands below are r
 - [x] **#4** — ADR-001 exists and follows template (Context, Decision, Consequences) — `python -c "from pathlib import Path; t = Path('.opencode/decisions/adr-001-json-only-agents.md').read_text(); assert all(s in t for s in ['Context', 'Decision', 'Consequences']), 'missing required ADR sections'"` — **VERIFIED 2026-06-03**: all 3 sections present
 - [x] **#5** — pytest test_conductor_workflow.py passes (6 tests) — `python -m pytest tests/test_conductor_workflow.py` — **VERIFIED 2026-06-03**: 6/6 PASSED
 - [x] **#6** — graph has >6 INFERRED edges — `python -c "import json; d = json.load(open('graphify-out/graph.json')); n = sum(1 for l in d['links'] if l.get('confidence') == 'INFERRED'); assert n > 6, f'expected >6 INFERRED edges, got {n}'"` — **VERIFIED 2026-06-03**: 36 INFERRED edges
-- [x] **#7** — .github/workflows/test.yml exists with push + pull_request triggers on windows-latest — `python -c "import yaml; d = yaml.safe_load(open('.github/workflows/test.yml')); t = list(d.get(True, d.get('on', {})).keys()); assert 'push' in t and 'pull_request' in t, f'triggers={t}'"` — **VERIFIED 2026-06-03**: triggers=[push, pull_request], runs-on=windows-latest
+- [x] **#7** — .github/workflows/ci.yml exists with matrix strategy (ubuntu + windows) — `python -c "from pathlib import Path; p = Path('.github/workflows/ci.yml'); assert p.exists(), 'ci.yml not found'; t = p.read_text(); assert 'matrix' in t and 'ubuntu-latest' in t and 'windows-latest' in t, 'missing matrix strategy'"` — **VERIFIED 2026-06-14**: CI merged into single matrix workflow
 - [x] **#8** — graphify-out/obsidian/ has _COMMUNITY_*.md files and graph.canvas — `python -c "from pathlib import Path; n = len(list(Path('graphify-out/obsidian').glob('_COMMUNITY_*.md'))); assert n > 0, 'no _COMMUNITY_*.md files'; assert Path('graphify-out/obsidian/graph.canvas').exists(), 'no graph.canvas'"` — **VERIFIED 2026-06-03**: 42 _COMMUNITY_*.md, graph.canvas present
 - [x] **#9** — conftest.py exports cfg, repo_path fixtures; tests use them — `python -c "t = open('tests/conftest.py').read(); assert 'def cfg(' in t and 'def repo_path(' in t, 'missing conftest fixtures'"` — **VERIFIED 2026-06-03**: both fixtures present
 - [x] **#10** — graphify-out/wiki/index.md exists and links to per-community articles — `python -c "from pathlib import Path; p = Path('graphify-out/wiki/index.md'); assert p.exists() and 'Communities' in p.read_text() and p.read_text().count('[[') > 5, 'index missing or no wiki-links'"` — **VERIFIED 2026-06-03**: 31 wiki-links

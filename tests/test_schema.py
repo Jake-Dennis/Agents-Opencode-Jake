@@ -19,7 +19,8 @@ def test_default_agent_exists(cfg):
 
 
 def test_all_agents_inherit_top_level_model(cfg):
-    """If project sets a top-level model, agents must match; if not, global config applies."""
+    """If project sets a top-level model, agents that set an explicit model must match;
+    if the project doesn't set one, global config applies and the test is vacuously true."""
     top = cfg.get("model")
     if top is None:
         return  # project doesn't override; global/user model applies
@@ -27,6 +28,13 @@ def test_all_agents_inherit_top_level_model(cfg):
         if "model" in entry:
             assert entry["model"] == top, \
                 f"agent.{name}.model ({entry['model']}) != top-level model ({top})"
+    # Every agent should have a fallback_model that differs from the top-level model
+    # (otherwise the fallback would never be used).
+    for name, entry in cfg["agent"].items():
+        if "fallback_model" in entry:
+            assert entry["fallback_model"] != top, \
+                f"agent.{name}.fallback_model ({entry['fallback_model']}) == top-level model ({top}); " \
+                "fallback should be a different model to actually serve as fallback"
 
 
 def test_commands_use_template_not_prompt(cfg):

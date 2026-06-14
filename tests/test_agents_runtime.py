@@ -12,7 +12,7 @@ from pathlib import Path
 for _k in ("OPENCODE_SERVER_PASSWORD", "OPENCODE_SERVER_USERNAME"):
     os.environ.pop(_k, None)
 
-PROJECT = Path(r"C:\Users\JakeP\Documents\GitHub\Agents-Opencode-Jake")
+PROJECT = Path(__file__).resolve().parent.parent
 AGENTS = [
     "conductor", "planner", "builder", "architect", "reviewer",
     "tester", "docs", "debugger", "refactor", "git",

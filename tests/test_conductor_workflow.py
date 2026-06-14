@@ -120,14 +120,24 @@ def _load_conductor_prompt_body(cfg, repo_path) -> str:
     1. Reads `cfg["agent"]["conductor"]["prompt"]` (the ref string).
     2. If it starts with `{file:`, strips the wrapper and reads the
        referenced file's content from `repo_path`.
-    3. Otherwise returns the raw value (legacy / future inline prompts).
+    3. Recursively expands any nested `{file:...}` references.
+    4. Otherwise returns the raw value (legacy / future inline prompts).
     """
+    import re
     ref = cfg["agent"]["conductor"]["prompt"]
     if isinstance(ref, str) and ref.startswith("{file:"):
-        # Strip the leading `{file:` and trailing `}`; the middle is a
-        # repo-root-relative path (e.g. `./.opencode/agents/conductor.md`).
         path_str = ref[len("{file:"):].rstrip("}")
-        return (repo_path / path_str).read_text(encoding="utf-8")
+        content = (repo_path / path_str).read_text(encoding="utf-8")
+        # Recursively expand nested {file:...} references
+        for m in re.finditer(r"\{file:([^}]+)\}", content):
+            nested_ref = m.group(1)
+            if nested_ref.startswith("./"):
+                nested_ref = nested_ref[2:]
+            nested_path = repo_path / nested_ref
+            if nested_path.exists():
+                nested_content = nested_path.read_text(encoding="utf-8")
+                content = content.replace(m.group(0), nested_content, 1)
+        return content
     return ref
 
 

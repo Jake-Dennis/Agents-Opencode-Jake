@@ -176,7 +176,7 @@ def test_T_MC_1_valid_plan_passes_all_mechanical_checks(repo_tmp):
         f"stdout: {r.stdout}\nstderr: {r.stderr}"
     )
     assert "MECHANICAL CHECKS" in r.stdout
-    assert "5/5 passed, 0 failed" in r.stdout
+    assert "7/7 passed, 0 failed" in r.stdout
     # Spot-check each check name appears in the PASS list.
     for name in (
         "@-assignment check",
@@ -322,3 +322,75 @@ def test_T_MC_6_unresolved_reference_fails_check_5(repo_tmp):
     assert "[PASS] non-empty description check" in r.stdout
     assert "[PASS] verification coverage check" in r.stdout
     assert "[PASS] no duplicate task IDs check" in r.stdout
+
+
+def test_T_MC_7_agent_registry_sync_passes(repo_tmp):
+    """T-MC-7: agent registry sync check passes when opencode.json agents
+    match AGENT-ROLES.md. We use the repo's own files as the fixture,
+    since they are known to be in sync.
+    """
+    plan = write_temp_plan("""# Plan: sync-ok
+
+### Layer 1
+- [x] T1: @builder verifies agent registry sync (assigned: @builder)
+
+## Verification
+- [x] #1 - test: `python -c "assert True"`
+""", repo_tmp)
+    r = run_verify(plan)
+    assert r.returncode == 0, (
+        f"expected exit 0, got {r.returncode}\nstdout: {r.stdout}\nstderr: {r.stderr}"
+    )
+    assert "[PASS] agent registry sync check" in r.stdout
+
+
+def test_T_MC_8_agent_registry_sync_detects_missing_agent(repo_tmp):
+    """T-MC-8: agent registry sync check fails when an agent in
+    opencode.json is missing from AGENT-ROLES.md.
+
+    We create a temp AGENT-ROLES.md that omits an agent.
+    """
+    import json
+    # Read the actual config to find a known agent name
+    cfg_path = REPO / "opencode.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    all_agents = sorted(cfg.get("agent", {}).keys())
+    # Pick the last agent to omit from the roles file
+    omit = all_agents[-1]
+    present = all_agents[:-1]
+
+    # Write a minimal AGENT-ROLES.md that lists all agents except `omit`
+    rows = "\n".join(
+        f"| `{a}` | all | Implementation | Does stuff | Can | Cannot | Conductor |"
+        for a in present
+    )
+    roles_content = f"""# Agent Roles
+
+## Agent roster
+
+| Agent | Mode | Phase | Role | Can | Cannot | Owned by |
+|-------|------|-------|------|-----|--------|----------|
+{rows}
+"""
+    roles_path = REPO / "AGENT-ROLES.md"
+    original_roles = roles_path.read_text(encoding="utf-8")
+    try:
+        roles_path.write_text(roles_content, encoding="utf-8")
+        plan = write_temp_plan("""# Plan: sync-missing
+
+### Layer 1
+- [x] T1: @builder checks registry (assigned: @builder)
+
+## Verification
+- [x] #1 - test: `python -c "assert True"`
+""", repo_tmp)
+        r = run_verify(plan)
+        assert r.returncode == 1, (
+            f"expected exit 1 (agent missing from roles), got {r.returncode}\n"
+            f"stdout: {r.stdout}"
+        )
+        assert "[FAIL] agent registry sync check" in r.stdout
+        assert omit in r.stdout
+    finally:
+        # Restore the original AGENT-ROLES.md
+        roles_path.write_text(original_roles, encoding="utf-8")

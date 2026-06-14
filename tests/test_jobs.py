@@ -38,6 +38,40 @@ def _load_cfg():
     return json.loads(CONFIG.read_text(encoding="utf-8"))
 
 
+def _resolve_prompt(cfg, agent_name, _depth=0):
+    """Resolve a prompt that may contain {file:...} references.
+
+    Recursively expands all {file:./path} references so that tests
+    can check for strings that live in shared section files.
+    """
+    if _depth > 5:
+        return ""  # prevent infinite recursion
+    prompt = cfg["agent"][agent_name]["prompt"]
+
+    # Find all {file:...} references and expand them
+    import re
+    file_ref_re = re.compile(r"\{file:([^}]+)\}")
+    result = prompt
+    for m in file_ref_re.finditer(prompt):
+        ref = m.group(1)
+        if ref.startswith("./"):
+            ref = ref[2:]
+        file_path = REPO / ref
+        if file_path.exists():
+            content = file_path.read_text(encoding="utf-8")
+            result = result.replace(m.group(0), content, 1)
+
+    # If any {file:} refs remain after expansion (nested), expand again
+    if file_ref_re.search(result):
+        # Create a temporary config with the expanded prompt
+        import copy
+        temp_cfg = copy.deepcopy(cfg)
+        temp_cfg["agent"][agent_name]["prompt"] = result
+        return _resolve_prompt(temp_cfg, agent_name, _depth + 1)
+
+    return result
+
+
 def _load_conductor_body():
     """Read .opencode/agents/conductor.md (resolved from {file:...} ref)."""
     return CONDUCTOR_MD.read_text(encoding="utf-8")
@@ -74,8 +108,7 @@ def test_t_jb_1_jobs_md_format():
 def test_t_jb_2_write_capable_have_section(agent_name):
     """T-JB-2: all 11 write-capable agents have the 'Live progress tracking' section."""
     cfg = _load_cfg()
-    prompt = cfg["agent"][agent_name]["prompt"]
-    assert isinstance(prompt, str), f"{agent_name}.prompt is not a string"
+    prompt = _resolve_prompt(cfg, agent_name)
     assert "Live progress tracking" in prompt, (
         f"{agent_name}.prompt missing 'Live progress tracking' section"
     )
@@ -102,7 +135,7 @@ def test_t_jb_3_readonly_path_scoped_edit(agent_name):
 def test_t_jb_4_readonly_prompt_has_only(agent_name):
     """T-JB-4: the 5 read-only agents' prompts explicitly say 'jobs.md ONLY'."""
     cfg = _load_cfg()
-    prompt = cfg["agent"][agent_name]["prompt"]
+    prompt = _resolve_prompt(cfg, agent_name)
     assert "ONLY" in prompt, (
         f"{agent_name}.prompt missing 'ONLY' clarification (should be read-only)"
     )
@@ -117,7 +150,7 @@ def test_t_jb_4_readonly_prompt_has_only(agent_name):
 def test_t_jb_5_impl_prompt_no_only(agent_name):
     """T-JB-5: the 6 impl agents have full edit access; their prompts must not say 'ONLY'."""
     cfg = _load_cfg()
-    prompt = cfg["agent"][agent_name]["prompt"]
+    prompt = _resolve_prompt(cfg, agent_name)
     # The "ONLY" phrase is reserved for read-only agents.
     # A bare "ONLY" elsewhere in the prompt would be a bug.
     assert "edit access to `\\.opencode/jobs\\.md` ONLY" not in prompt, (
@@ -147,9 +180,8 @@ def test_t_jb_6_conductor_and_git_excluded():
         "(conductor writes to todo.md and work-log.md, not jobs.md)"
     )
 
-    # Git agent: inline prompt, must not have the section
-    git_prompt = cfg["agent"]["git"]["prompt"]
-    assert isinstance(git_prompt, str), "git.prompt should be an inline string"
+    # Git agent: resolved prompt (may be file ref or inline), must not have the section
+    git_prompt = _resolve_prompt(cfg, "git")
     assert "Live progress tracking" not in git_prompt, (
         "git.prompt must NOT have the 'Live progress tracking' section "
         "(git stays on bash-only permissions)"

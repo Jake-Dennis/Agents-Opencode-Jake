@@ -292,21 +292,65 @@ def run_mechanical_checks(plan_path, workdir):
          for u in unresolved],
     ))
 
-    # ---- check 6: knowledge graph exists and is usable ----
+    # ---- check 6: knowledge graph exists and is usable (ADVISORY) ----
+    # This is a soft check: a missing or empty graph does NOT fail the plan.
+    # It prints a warning so the user knows context may be incomplete, but
+    # plans unrelated to the knowledge graph should still verify.
     graph_path = workdir / "graphify-out" / "graph.json"
     graph_ok = graph_path.exists() and graph_path.stat().st_size > 100
     graph_msg = None
     if not graph_path.exists():
-        graph_msg = "graphify-out/graph.json does not exist — run /graphify . first"
+        graph_msg = "graphify-out/graph.json does not exist — run /graphify . first (advisory, not blocking)"
     elif graph_path.stat().st_size <= 100:
-        graph_msg = "graphify-out/graph.json exists but is nearly empty (less than 100 bytes)"
-    if graph_msg:
-        graph_msg += "\n       The knowledge graph must be built before plan verification can be meaningful."
-        graph_msg += "\n       Run /graphify . to build it, then re-run verify-plan.py."
+        graph_msg = "graphify-out/graph.json exists but is nearly empty (less than 100 bytes) — run /graphify . to rebuild (advisory, not blocking)"
     results.append((
         "knowledge graph exists check",
         graph_ok,
         [graph_msg] if graph_msg else [],
+    ))
+
+    # ---- check 7: agent registry sync check ----
+    # Every agent in opencode.json must have a row in AGENT-ROLES.md,
+    # and the mode (primary/all/subagent) must match.
+    roles_path = workdir / "AGENT-ROLES.md"
+    config_path = workdir / "opencode.json"
+    sync_errors = []
+    if roles_path.exists() and config_path.exists():
+        roles_text = roles_path.read_text(encoding="utf-8", errors="replace")
+        config_text = config_path.read_text(encoding="utf-8", errors="replace")
+        # Extract agent names from opencode.json (lightweight JSON parse)
+        # Avoid importing json to keep dependencies minimal
+        import json as _json
+        try:
+            config = _json.loads(config_text)
+            agents_in_config = set(config.get("agent", {}).keys())
+        except (_json.JSONDecodeError, KeyError):
+            agents_in_config = set()
+
+        if agents_in_config:
+            # Find agent names mentioned in the AGENT-ROLES.md table
+            # The table has rows like: | `builder` | all | Implementation | ...
+            table_agent_re = re.compile(r"\|\s*`(\w+)`\s*\|")
+            agents_in_roles = set(table_agent_re.findall(roles_text))
+
+            # Check: every config agent must appear in roles
+            missing_from_roles = agents_in_config - agents_in_roles
+            for name in sorted(missing_from_roles):
+                sync_errors.append(
+                    f"agent '{name}' in opencode.json but not in AGENT-ROLES.md table"
+                )
+
+            # Check: every roles agent must appear in config
+            missing_from_config = agents_in_roles - agents_in_config
+            for name in sorted(missing_from_config):
+                sync_errors.append(
+                    f"agent '{name}' in AGENT-ROLES.md but not in opencode.json"
+                )
+
+    results.append((
+        "agent registry sync check",
+        not sync_errors,
+        sync_errors,
     ))
 
     return results
@@ -449,19 +493,35 @@ def main():
     print(f"MECHANICAL CHECKS: {m_pass}/{len(mechanical)} passed, {m_fail} failed")
     print()
 
-    if n_fail == 0 and m_fail == 0:
+    # Separate mechanical checks into hard vs advisory.
+    # Check 6 (knowledge graph exists) is advisory: a missing graph does NOT
+    # fail the plan. All other mechanical checks are hard gates.
+    m_hard_fail = sum(1 for name, p, _ in mechanical if not p and name != "knowledge graph exists check")
+    m_advisory_fail = sum(1 for name, p, _ in mechanical if not p and name == "knowledge graph exists check")
+
+    if n_fail == 0 and m_hard_fail == 0:
         print("ALL CHECKS PASSED. Plan is verified.")
+        if m_advisory_fail > 0:
+            print(f"  ({m_advisory_fail} advisory check(s) have warnings — see above)")
         sys.exit(0)
 
     # Build a single failure summary. Preserve the legacy
     # "1 CHECK(S) FAILED" wording the existing test suite asserts on
     # when there are NO mechanical-check failures; otherwise include
-    # the mechanical count too.
-    if m_fail == 0:
+    # the mechanical count too.  Advisory checks are excluded from
+    # the hard-fail count.
+    if m_hard_fail == 0 and m_advisory_fail == 0:
         print(f"{n_fail} CHECK(S) FAILED. Plan is NOT verified.")
+    elif m_hard_fail == 0 and m_advisory_fail > 0:
+        # Hard mechanical checks passed, but advisory (graph) has warnings.
+        # Verification failures still block the plan.
+        total_fail = n_fail + m_hard_fail
+        print(f"{n_fail} verification CHECK(S) FAILED. Plan is NOT verified.")
     else:
+        total_hard = n_fail + m_hard_fail
+        advisory_msg = f" ({m_advisory_fail} advisory)" if m_advisory_fail else ""
         print(
-            f"{n_fail} verification and {m_fail} mechanical CHECK(S) FAILED. "
+            f"{n_fail} verification and {m_hard_fail} mechanical{advisory_msg} CHECK(S) FAILED. "
             "Plan is NOT verified."
         )
     sys.exit(1)
