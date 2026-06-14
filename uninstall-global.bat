@@ -109,18 +109,10 @@ echo.
 echo [2/6] Removing agent files...
 set "REMOVED_COUNT=0"
 
-:: Remove the junction directory (if created by mklink)
+:: Remove any legacy junction directory
 rd /s /q "%AGENTS_DIR%\Agents-Opencode-Jake" 2>nul
-if exist "%AGENTS_DIR%\Agents-Opencode-Jake" (
-    echo  [WARN] could not remove junction — try running as Admin
-) else if not "%FORCE%"=="1" (
-    echo  Removed: Agents-Opencode-Jake junction
-)
 
-:: Remove the shared/ subdirectory (if copy fallback was used)
-rd /s /q "%AGENTS_DIR%\shared" 2>nul
-
-:: Remove individual agent .md files (if copy fallback was used)
+:: Remove individual agent .md files
 for %%A in (conductor planner builder architect reviewer tester docs debugger refactor git explorer security perf) do (
     if exist "%AGENTS_DIR%\%%A.md" (
         del /f "%AGENTS_DIR%\%%A.md" >nul 2>&1

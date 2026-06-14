@@ -65,11 +65,14 @@ if not exist "%SKILLS_DIR%" mkdir "%SKILLS_DIR%"
 echo  Dirs: %AGENTS_DIR%, %SKILLS_DIR%
 echo.
 
-:: ---- Step 2: Agent junction (adaptive) ----
-:: If the repo has legacy .opencode\agents\*.md files, do the original
-:: junction. Otherwise (post-ADR-001 JSON-only layout), skip the junction
-:: and rely on the jsonc merge in step 4. If neither is available, abort.
-echo [2/5] Agent junction...
+:: ---- Step 2: Agent files (copy directly) ----
+:: Copy agent .md files directly to the global agents directory. We do NOT
+:: use a junction because opencode reads ALL .md files in the agents dir
+:: tree — a junction would cause opencode to read files twice (once from
+:: the config, once from the directory scan), creating duplicate agents.
+:: Only the 13 agent .md files are copied, NOT the shared/ subdirectory
+:: (which contains prompt sections, not agent definitions).
+echo [2/5] Copying agent files...
 set "AGENT_MD_COUNT=0"
 for /f %%A in ('dir /b /a-d "%REPO_DIR%\.opencode\agents\*.md" 2^>nul ^| find /c /v ""') do set "AGENT_MD_COUNT=%%A"
 set "HAS_AGENT_KEY=0"
@@ -77,11 +80,20 @@ findstr /c:"\"agent\":" "%PROJECT_CONFIG%" >nul 2>&1
 if not errorlevel 1 set "HAS_AGENT_KEY=1"
 
 if %AGENT_MD_COUNT% gtr 0 (
-    set "AGENT_LINK=%AGENTS_DIR%\Agents-Opencode-Jake"
-    set "AGENT_TARGET=%REPO_DIR%.opencode\agents"
-    call :create_junction "!AGENT_LINK!" "!AGENT_TARGET!" "agent"
-    REM Save agent result before skill junction overwrites J_RESULT
-    set "AGENT_J_RESULT=!J_RESULT!"
+    REM Remove any existing junction or stale files first
+    if exist "%AGENTS_DIR%\Agents-Opencode-Jake" (
+        rd /s /q "%AGENTS_DIR%\Agents-Opencode-Jake" 2>nul
+    )
+    REM Remove any stale .md files from previous junction-based installs
+    for %%F in ("%AGENTS_DIR%\*.md") do del /f "%%F" >nul 2>&1
+    if exist "%AGENTS_DIR%\shared" rd /s /q "%AGENTS_DIR%\shared" 2>nul
+    REM Copy only the 13 agent .md files (not shared/)
+    for %%F in ("%REPO_DIR%.opencode\agents\*.md") do (
+        copy /Y "%%F" "%AGENTS_DIR%\%%~nxF" >nul 2>&1
+        set /a AGENT_MD_COUNT+=1
+    )
+    echo  [OK] copied !AGENT_MD_COUNT! agent .md files to %AGENTS_DIR%
+    set "AGENT_J_RESULT=copied"
 ) else if %HAS_AGENT_KEY%==1 (
     echo  [INFO] No .opencode\agents\*.md files — agents are in opencode.json,
     echo         will merge into global config.
@@ -92,25 +104,6 @@ if %AGENT_MD_COUNT% gtr 0 (
     set "AGENT_J_RESULT=error"
     pause
     exit /b 1
-)
-
-:: ---- Step 2.5: Clean stale loose .md files ----
-:: When switching from a copy-based install (previous versions) to a junction,
-:: old .md files remain in the global agents dir. Opencode reads ALL .md files
-:: there, causing duplicate agents. Remove them if a junction exists.
-if "%AGENT_J_RESULT%"=="created" (
-    set "STALE_COUNT=0"
-    for %%F in ("%AGENTS_DIR%\*.md") do (
-        del /f "%%F" >nul 2>&1
-        set /a STALE_COUNT+=1
-    )
-    if !STALE_COUNT! gtr 0 (
-        echo  [CLEAN] removed !STALE_COUNT! stale agent .md files (junction provides them)
-    )
-    if exist "%AGENTS_DIR%\shared" (
-        rd /s /q "%AGENTS_DIR%\shared" 2>nul
-        echo  [CLEAN] removed stale shared/ directory (junction provides it)
-    )
 )
 echo.
 
@@ -243,20 +236,11 @@ echo.
 :: resolve relative to %CONFIG_DIR%, not the project. We must rewrite
 :: them to match the actual location of agent .md files.
 ::
-:: - Junction succeeded: files at %AGENTS_DIR%\Agents-Opencode-Jake\...
-::   Rewrite to {file:./agents/Agents-Opencode-Jake/...}
-:: - Copy fallback: files copied to %AGENTS_DIR%\...
-::   Rewrite to {file:./agents/...}
-:: - Both failed: no agent files available, paths left as-is (will error)
+:: Files are copied directly to %AGENTS_DIR%\ (no junction, no subdirectory).
+:: Rewrite {file:./.opencode/agents/X} -> {file:./agents/X}
 echo [4c/5] Fixing agent file references for global config...
-if "%AGENT_J_RESULT%"=="created" (
-    REM Junction: agents at %AGENTS_DIR%\Agents-Opencode-Jake\
-    REM Rewrite {file:./.opencode/agents/X} -> {file:./agents/Agents-Opencode-Jake/X}
-    "!PY!" -c "path=r'%GLOBAL_CONFIG%';c=open(path,encoding='utf-8').read();c=c.replace('{file:./.opencode/agents/','{file:./agents/Agents-Opencode-Jake/');open(path,'w',encoding='utf-8').write(c);print('  [OK] paths rewritten for junction')"
-) else if "%AGENT_J_RESULT%"=="copy" (
-    REM Copy fallback: agents copied to %AGENTS_DIR%\ directly
-    REM Rewrite {file:./.opencode/agents/X} -> {file:./agents/X}
-    "!PY!" -c "path=r'%GLOBAL_CONFIG%';c=open(path,encoding='utf-8').read();c=c.replace('{file:./.opencode/agents/','{file:./agents/');open(path,'w',encoding='utf-8').write(c);print('  [OK] paths rewritten for copy')"
+if "%AGENT_J_RESULT%"=="copied" (
+    "!PY!" -c "path=r'%GLOBAL_CONFIG%';c=open(path,encoding='utf-8').read();c=c.replace('{file:./.opencode/agents/','{file:./agents/');open(path,'w',encoding='utf-8').write(c);print('  [OK] paths rewritten')"
 ) else (
     echo  [SKIP] agent files not available, paths left as-is
 )
@@ -306,13 +290,11 @@ echo ============================================
 echo  Global install complete!
 echo ============================================
 echo.
-if "%AGENT_J_RESULT%"=="created" (
-    echo  Agents junctioned: %AGENTS_DIR%\Agents-Opencode-Jake -^> .opencode\agents\
+if "%AGENT_J_RESULT%"=="copied" (
+    echo  Agents copied:     %AGENTS_DIR%\ (13 agent .md files)
+    echo                       Re-run global-setup.bat to refresh.
 )
-if "%AGENT_J_RESULT%"=="copy" (
-    echo  Agents copied:    %AGENTS_DIR%\Agents-Opencode-Jake (live updates require Admin)
-)
-if not "%AGENT_J_RESULT%"=="created" if not "%AGENT_J_RESULT%"=="copy" (
+if not "%AGENT_J_RESULT%"=="copied" (
     echo  Agents merged into: %GLOBAL_CONFIG%
 )
 echo  Skills linked: %SKILLS_DIR%\graphify-agent-workflow

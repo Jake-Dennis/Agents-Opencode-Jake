@@ -597,22 +597,20 @@ def test_bat_dir_var_consistency(bat_name):
 
 
 def test_global_setup_bat_always_rewrites_agent_paths():
-    """T-BAT-PATH: global-setup.bat rewrites {file:} paths in BOTH junction
-    and copy cases.
+    """T-BAT-PATH: global-setup.bat copies agent .md files directly to the
+    agents directory and rewrites {file:} paths.
 
-    Regression: the original step 4c only ran when the junction failed,
-    leaving {file:./.opencode/agents/...} paths in the global config when
-    the junction succeeded. Opencode resolves these relative to the global
-    config directory, not the repo root, producing 'bad file reference' errors.
+    Regression: the old junction-based approach caused opencode to read
+    files twice (once from config, once from directory scan), creating
+    duplicate agents like "Agents-Opencode-Jake/s...".
 
-    The fix makes step 4c unconditional: junction -> rewrite to
-    {file:./agents/Agents-Opencode-Jake/...}, copy -> rewrite to
-    {file:./agents/...}.
+    The fix copies files directly to the agents directory (no junction,
+    no subdirectory) and rewrites paths to {file:./agents/X}.
     """
     text = _read_bat("global-setup.bat")
     lines = text.splitlines()
 
-    # Find the step 4c section (between "Step 4c" comment and "Step 4d" comment)
+    # Find the step 4c section
     step_4c_start = -1
     step_4c_end = len(lines)
     for i, line in enumerate(lines):
@@ -625,33 +623,26 @@ def test_global_setup_bat_always_rewrites_agent_paths():
     assert step_4c_start > 0, "global-setup.bat missing step 4c comment"
     step_4c_text = "\n".join(lines[step_4c_start:step_4c_end])
 
-    # Step 4c must handle the "created" case (junction succeeded)
-    assert '"%AGENT_J_RESULT%"=="created"' in step_4c_text, (
-        "global-setup.bat step 4c must handle junction-created case"
+    # Step 4c must handle the "copied" case
+    assert '"%AGENT_J_RESULT%"=="copied"' in step_4c_text, (
+        "global-setup.bat step 4c must handle copied case"
     )
 
-    # Step 4c must rewrite paths for junction case
-    assert "{file:./agents/Agents-Opencode-Jake/" in step_4c_text, (
-        "global-setup.bat must rewrite paths to {file:./agents/Agents-Opencode-Jake/...} "
-        "when junction is created"
-    )
-
-    # Step 4c must handle the "copy" case (copy fallback)
-    assert '"%AGENT_J_RESULT%"=="copy"' in step_4c_text, (
-        "global-setup.bat step 4c must handle copy-fallback case"
-    )
-
-    # Step 4c must rewrite paths for copy case
+    # Step 4c must rewrite paths to {file:./agents/...}
     assert "{file:./agents/" in step_4c_text, (
         "global-setup.bat must rewrite paths to {file:./agents/...} "
-        "when copy fallback is used"
+        "when files are copied"
     )
 
-    # The old conditional (skip when created) must NOT be in step 4c
-    # (It may still exist in the summary section for display purposes)
-    old_skip = 'if not "%AGENT_J_RESULT%"=="created" if not "%AGENT_J_RESULT%"=="copy"'
-    assert old_skip not in step_4c_text, (
-        "global-setup.bat step 4c must run unconditionally — the old "
-        "conditional that skipped rewriting when junction succeeded is removed"
+    # No junction references in step 4c code (comments are OK)
+    code_lines = [l for l in step_4c_text.splitlines() if not l.strip().startswith("::")]
+    code_text = "\n".join(code_lines)
+    assert "junction" not in code_text.lower(), (
+        "global-setup.bat step 4c code must not reference junctions"
+    )
+
+    # No Agents-Opencode-Jake subdirectory references in code
+    assert "Agents-Opencode-Jake/" not in code_text, (
+        "global-setup.bat step 4c must not use Agents-Opencode-Jake subdirectory"
     )
 
