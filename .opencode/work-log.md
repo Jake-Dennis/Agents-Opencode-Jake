@@ -386,3 +386,39 @@ o verification tasks found). Fixed.
   - `disabled_providers` restores the 10 blocked providers from plan-014: `openai`, `anthropic`, `google`, `azure`, `cohere`, `groq`, `openrouter`, `gemini`, `mistral`, `together`
 - **Verify:** JSON valid, 20/20 schema + safety tests pass
 - **Status:** Complete
+
+## 2026-06-15 — Plan 016 + 017: Externalize agent prompts, shared sections, context protocol
+- **Task:** Two rounds of 10 improvements each (20 total) to restructure the agent system
+- **Agents:** conductor (all work done inline — subagent dispatch unavailable)
+- **Files (new):**
+  - `.opencode/agents/architect.md`, `builder.md`, `debugger.md`, `docs.md`, `explorer.md`, `git.md`, `perf.md`, `planner.md`, `refactor.md`, `reviewer.md`, `security.md`, `tester.md` (12 agent prompts externalized from opencode.json)
+  - `.opencode/agents/shared/consult.md`, `graphify.md`, `handoff.md`, `honesty.md`, `progress-tracking-readonly.md`, `progress-tracking.md`, `project-context.md`, `self-review.md`, `tools.md` (8 shared sections)
+  - `.opencode/context.md` (session context protocol)
+  - `.opencode/commands/status.md` (/status slash command)
+  - `.opencode/decisions/adr-007-externalize-prompts-ten-improvements.md`
+  - `.opencode/decisions/adr-008-agent-prompt-improvements.md`
+  - `.opencode/plans/plan-016-ten-improvements.md`
+  - `.opencode/plans/plan-017-improve-agents.md`
+- **Files (modified):**
+  - `opencode.json` (71KB → 9.9KB, all 13 agent prompts → {file:} references, removed top-level model key, all fallback_model = deepseek-v4-flash-free, added agent-registry sync check)
+  - `.opencode/agents/conductor.md` (rewritten with dispatch context rule, subagent reference table, plan template section)
+  - `.opencode/jobs.md` (added machine-parseable field spec)
+  - `.github/workflows/ci.yml` (merged matrix CI with ubuntu + windows, deleted test.yml)
+  - `scripts/verify-plan.py` (2 new checks: #6 advisory graph, #7 agent-registry sync; total 7 mechanical checks)
+  - `tests/test_jobs.py` (added _resolve_prompt for nested {file:} resolution)
+  - `tests/test_conductor_workflow.py` (updated _load_conductor_prompt_body for nested {file:})
+  - `tests/test_schema.py` (updated test_all_agents_inherit_top_level_model for no model key)
+  - `tests/test_verify_plan.py` (added T_MC_7, T_MC_8, updated count to 7/7)
+  - `tests/test_agents_runtime.py` (fixed hard-coded C:\Users\JakeP path)
+  - `README.md` (updated models, commands, artifacts sections)
+- **Decisions:**
+  - **No top-level model key:** User selects model in opencode UI; fallback_model serves as fallback only
+  - **All fallback_model = deepseek-v4-flash-free:** consistent across all 13 agents, differs from primary
+  - **Shared sections via {file:} includes:** future extraction to composable includes possible; 600+ lines of duplication eliminated
+  - **Knowledge graph check is advisory:** warns but doesn't block (new projects won't have a graph)
+  - **Agent-registry sync check is hard gate:** blocks plan verification on mismatch
+  - **Read-only agents use progress-tracking-readonly.md:** no "mark in_progress" permission
+  - **Git agent doesn't get progress-tracking or handoff:** git-only bash permissions
+- **Verify:** 199 tests pass, 2 pre-existing failures (T_AS_1, T_AS_5), 1 skipped
+- **Commit:** `8e1ae46` (40 files changed, 1329 insertions, 203 deletions)
+- **Status:** Complete

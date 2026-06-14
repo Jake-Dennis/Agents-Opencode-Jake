@@ -1,277 +1,290 @@
 {
-    "$schema": "https://opencode.ai/config.json",
-    "default_agent": "conductor",
-    "provider": {
-        "opencode": {
-            "options": {
-                "reasoning_effort": "max"
-            }
-        },
-        "ollama": {
-            "npm": "@ai-sdk/openai-compatible",
-            "name": "Ollama (local)",
-            "options": {
-                "baseURL": "http://localhost:11434/v1"
-            }
-        }
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "conductor",
+  "provider": {
+    "opencode": {
+      "options": {
+        "reasoning_effort": "max"
+      }
     },
-    "skills": {
-        "paths": [
-            ".opencode/skills"
-        ]
-    },
-    "mcp": {
-        "graphify": {
-            "type": "local",
-            "command": [
-                "python",
-                "-m",
-                "graphify.serve",
-                "graphify-out/graph.json"
-            ],
-            "enabled": true
-        }
-    },
-    "compaction": {
-        "auto": true,
-        "prune": true
-    },
-    "agent": {
-        "conductor": {
-            "description": "Orchestrator agent. Delegates work to specialist subagents, maintains todo lists, documentation, graphify knowledge graph, and git workflow. The default primary agent for this project.",
-            "mode": "primary",
-            "permission": {
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#5EEAD4",
-            "prompt": "{file:./.opencode/agents/conductor.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "planner": {
-            "description": "Planning and analysis. Analyzes requirements, designs architecture, and creates implementation plans without making any changes.",
-            "mode": "primary",
-            "permission": {
-                "edit": {
-                    ".opencode/jobs.md": "allow",
-                    "*": "deny"
-                },
-                "bash": "deny",
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#A78BFA",
-            "temperature": 0.2,
-            "prompt": "{file:./.opencode/agents/planner.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "builder": {
-            "description": "Code implementation. Writes new code and modifies existing code. Use when conductor delegates a well-scoped coding task with clear requirements.",
-            "mode": "all",
-            "permission": {
-                "edit": "allow",
-                "bash": "allow",
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#34D399",
-            "prompt": "{file:./.opencode/agents/builder.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "architect": {
-            "description": "System design and architecture. Designs data models, API contracts, component boundaries, and system structure. Use when designing architecture, data flow, or component relationships.",
-            "mode": "all",
-            "permission": {
-                "edit": {
-                    ".opencode/jobs.md": "allow",
-                    "*": "deny"
-                },
-                "read": "allow",
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#C4B5FD",
-            "temperature": 0.2,
-            "prompt": "{file:./.opencode/agents/architect.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "reviewer": {
-            "description": "Code review. Reviews code for bugs, security issues, style violations, and correctness. Use when code needs review, QA, or quality check before merging.",
-            "mode": "all",
-            "permission": {
-                "edit": {
-                    ".opencode/jobs.md": "allow",
-                    "*": "deny"
-                },
-                "read": "allow",
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#FBBF24",
-            "temperature": 0.1,
-            "prompt": "{file:./.opencode/agents/reviewer.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "tester": {
-            "description": "Test writing. Writes unit, integration, and E2E tests. Creates test fixtures and mocks. Use when tests need to be written, updated, or debugged.",
-            "mode": "all",
-            "permission": {
-                "edit": "allow",
-                "bash": "allow",
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#60A5FA",
-            "prompt": "{file:./.opencode/agents/tester.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "docs": {
-            "description": "Documentation. Writes README files, API documentation, inline code comments, changelogs, and technical guides.",
-            "mode": "all",
-            "permission": {
-                "edit": "allow",
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#F472B6",
-            "prompt": "{file:./.opencode/agents/docs.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "debugger": {
-            "description": "Bug fixing. Diagnoses crashes, errors, and unexpected behavior. Analyzes logs, stack traces, and reproduces issues.",
-            "mode": "all",
-            "permission": {
-                "edit": "allow",
-                "bash": "allow",
-                "read": "allow",
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#F87171",
-            "prompt": "{file:./.opencode/agents/debugger.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "refactor": {
-            "description": "Code refactoring. Improves code structure, reduces duplication, enhances readability without changing behavior.",
-            "mode": "all",
-            "permission": {
-                "edit": "allow",
-                "bash": "ask",
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#6EE7B7",
-            "prompt": "{file:./.opencode/agents/refactor.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "git": {
-            "description": "Git operations. Manages branches, commits, merges, rebases, and PRs. Writes conventional commit messages.",
-            "mode": "all",
-            "permission": {
-                "bash": {
-                    "git *": "allow",
-                    "*": "deny"
-                },
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#94A3B8",
-            "prompt": "{file:./.opencode/agents/git.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "explorer": {
-            "description": "Codebase exploration. Fast read-only search, grep, file discovery, and code navigation. Use when finding where things are or understanding code structure.",
-            "mode": "all",
-            "permission": {
-                "edit": {
-                    ".opencode/jobs.md": "allow",
-                    "*": "deny"
-                },
-                "read": "allow",
-                "bash": "allow",
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#7DD3FC",
-            "prompt": "{file:./.opencode/agents/explorer.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "security": {
-            "description": "Security auditing. Scans for vulnerabilities, injection risks, auth flaws, insecure dependencies, and OWASP top-10 issues.",
-            "mode": "all",
-            "permission": {
-                "edit": {
-                    ".opencode/jobs.md": "allow",
-                    "*": "deny"
-                },
-                "read": "allow",
-                "bash": "ask",
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#DC2626",
-            "temperature": 0.1,
-            "prompt": "{file:./.opencode/agents/security.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        },
-        "perf": {
-            "description": "Performance optimization. Profiles code, identifies bottlenecks, optimizes algorithms, queries, and resource usage.",
-            "mode": "all",
-            "permission": {
-                "edit": "allow",
-                "bash": "allow",
-                "read": "allow",
-                "task": {
-                    "*": "deny"
-                }
-            },
-            "color": "#F59E0B",
-            "prompt": "{file:./.opencode/agents/perf.md}",
-            "variant": "default",
-            "fallback_model": "opencode/deepseek-v4-flash-free"
-        }
-    },
-    "permission": {
-        "bash": {
-            "git *": "allow",
-            "npm *": "allow",
-            "npx *": "allow",
-            "bun *": "allow",
-            "python3 *": "allow",
-            "pip *": "allow",
-            "rm *": "deny",
-            "sudo *": "deny",
-            "*": "ask"
-        },
-        "external_directory": {
-            "*": "allow"
-        }
-    },
-    "instructions": [
-        "AGENTS.md"
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (local)",
+      "options": {
+        "baseURL": "http://localhost:11434/v1"
+      }
+    }
+  },
+  "skills": {
+    "paths": [
+      ".opencode/skills"
     ]
+  },
+  "mcp": {
+    "graphify": {
+      "type": "local",
+      "command": [
+        "python",
+        "-m",
+        "graphify.serve",
+        "graphify-out/graph.json"
+      ],
+      "enabled": true
+    }
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true
+  },
+  "agent": {
+    "conductor": {
+      "description": "Orchestrator agent. Delegates work to specialist subagents, maintains todo lists, documentation, graphify knowledge graph, and git workflow. The default primary agent for this project.",
+      "mode": "primary",
+      "permission": {
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#5EEAD4",
+      "prompt": "{file:./.opencode/agents/conductor.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 50
+    },
+    "planner": {
+      "description": "Planning and analysis. Analyzes requirements, designs architecture, and creates implementation plans without making any changes.",
+      "mode": "primary",
+      "permission": {
+        "edit": {
+          ".opencode/jobs.md": "allow",
+          "*": "deny"
+        },
+        "bash": "deny",
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#A78BFA",
+      "temperature": 0.2,
+      "prompt": "{file:./.opencode/agents/planner.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 30
+    },
+    "builder": {
+      "description": "Code implementation. Writes new code and modifies existing code. Use when conductor delegates a well-scoped coding task with clear requirements.",
+      "mode": "all",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#34D399",
+      "prompt": "{file:./.opencode/agents/builder.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 100
+    },
+    "architect": {
+      "description": "System design and architecture. Designs data models, API contracts, component boundaries, and system structure. Use when designing architecture, data flow, or component relationships.",
+      "mode": "all",
+      "permission": {
+        "edit": {
+          ".opencode/jobs.md": "allow",
+          "*": "deny"
+        },
+        "read": "allow",
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#C4B5FD",
+      "temperature": 0.2,
+      "prompt": "{file:./.opencode/agents/architect.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 30
+    },
+    "reviewer": {
+      "description": "Code review. Reviews code for bugs, security issues, style violations, and correctness. Use when code needs review, QA, or quality check before merging.",
+      "mode": "all",
+      "permission": {
+        "edit": {
+          ".opencode/jobs.md": "allow",
+          "*": "deny"
+        },
+        "read": "allow",
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#FBBF24",
+      "temperature": 0.1,
+      "prompt": "{file:./.opencode/agents/reviewer.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 20
+    },
+    "tester": {
+      "description": "Test writing. Writes unit, integration, and E2E tests. Creates test fixtures and mocks. Use when tests need to be written, updated, or debugged.",
+      "mode": "all",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#60A5FA",
+      "prompt": "{file:./.opencode/agents/tester.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 50
+    },
+    "docs": {
+      "description": "Documentation. Writes README files, API documentation, inline code comments, changelogs, and technical guides.",
+      "mode": "all",
+      "permission": {
+        "edit": "allow",
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#F472B6",
+      "prompt": "{file:./.opencode/agents/docs.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 30
+    },
+    "debugger": {
+      "description": "Bug fixing. Diagnoses crashes, errors, and unexpected behavior. Analyzes logs, stack traces, and reproduces issues.",
+      "mode": "all",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "read": "allow",
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#F87171",
+      "prompt": "{file:./.opencode/agents/debugger.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 40
+    },
+    "refactor": {
+      "description": "Code refactoring. Improves code structure, reduces duplication, enhances readability without changing behavior.",
+      "mode": "all",
+      "permission": {
+        "edit": "allow",
+        "bash": "ask",
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#6EE7B7",
+      "prompt": "{file:./.opencode/agents/refactor.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 50
+    },
+    "git": {
+      "description": "Git operations. Manages branches, commits, merges, rebases, and PRs. Writes conventional commit messages.",
+      "mode": "all",
+      "permission": {
+        "bash": {
+          "git *": "allow",
+          "*": "deny"
+        },
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#94A3B8",
+      "prompt": "{file:./.opencode/agents/git.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 10
+    },
+    "explorer": {
+      "description": "Codebase exploration. Fast read-only search, grep, file discovery, and code navigation. Use when finding where things are or understanding code structure.",
+      "mode": "all",
+      "permission": {
+        "edit": {
+          ".opencode/jobs.md": "allow",
+          "*": "deny"
+        },
+        "read": "allow",
+        "bash": "allow",
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#7DD3FC",
+      "prompt": "{file:./.opencode/agents/explorer.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 20
+    },
+    "security": {
+      "description": "Security auditing. Scans for vulnerabilities, injection risks, auth flaws, insecure dependencies, and OWASP top-10 issues.",
+      "mode": "all",
+      "permission": {
+        "edit": {
+          ".opencode/jobs.md": "allow",
+          "*": "deny"
+        },
+        "read": "allow",
+        "bash": "ask",
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#DC2626",
+      "temperature": 0.1,
+      "prompt": "{file:./.opencode/agents/security.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 40
+    },
+    "perf": {
+      "description": "Performance optimization. Profiles code, identifies bottlenecks, optimizes algorithms, queries, and resource usage.",
+      "mode": "all",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "read": "allow",
+        "task": {
+          "*": "deny"
+        }
+      },
+      "color": "#F59E0B",
+      "prompt": "{file:./.opencode/agents/perf.md}",
+      "variant": "default",
+      "fallback_model": "opencode/deepseek-v4-flash-free",
+      "steps": 40
+    }
+  },
+  "permission": {
+    "bash": {
+      "git *": "allow",
+      "npm *": "allow",
+      "npx *": "allow",
+      "bun *": "allow",
+      "python3 *": "allow",
+      "pip *": "allow",
+      "rm *": "deny",
+      "sudo *": "deny",
+      "*": "ask"
+    },
+    "external_directory": {
+      "*": "allow"
+    }
+  },
+  "instructions": [
+    "AGENTS.md"
+  ]
 }
