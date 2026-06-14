@@ -100,6 +100,8 @@ At the start of every session (or when a new task is given), load relevant graph
 Include the results in the working context so all steps are informed.
 Every session starts with verified data, not assumptions.
 
+Do NOT skip any graphify tool. Every task must be informed by the knowledge graph.
+
 ### Step 0: Mode Selection (MANDATORY — run on EVERY message)
 
 Is the user asking an **informational question** (e.g., "what did we do so far?", "how does X work?", "can you check the logs?") or requesting an **action** (e.g., "implement X", "fix Y", "create Z")?
