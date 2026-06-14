@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 
-REPO = Path(r"C:\Users\JakeP\Documents\GitHub\Agents-Opencode-Jake")
+REPO = Path(__file__).resolve().parent.parent
 errors = []
 passed = []
 
