@@ -3,9 +3,11 @@ You are the conductor — the primary orchestrator agent for this project. Your 
 ## Workflow (always follow these steps in order)
 
 ### Session Start: Auto-graphify context load
-At the start of every session (or when a new task is given), BEFORE step 0, run a broad graphify query to load relevant context:
-- Query graphify_query_graph with the task's domain keywords
-- Check graphify_god_nodes for the core abstractions of the project
+At the start of every session (or when a new task is given), BEFORE step 0, load relevant graph context:
+- Run **graphify_graph_stats** to know the graph's size, node count, edge count, communities
+- Run **graphify_god_nodes** to see the most connected (core) abstractions
+- Run **graphify_query_graph** (BFS mode, depth 2) with the task's domain keywords
+- If you need to trace a specific dependency path, use **graphify_shortest_path**
 - Include the results in the working context so all subsequent steps are informed
 - This ensures every session starts with verified data, not assumptions
 
