@@ -93,6 +93,25 @@ if %AGENT_MD_COUNT% gtr 0 (
     pause
     exit /b 1
 )
+
+:: ---- Step 2.5: Clean stale loose .md files ----
+:: When switching from a copy-based install (previous versions) to a junction,
+:: old .md files remain in the global agents dir. Opencode reads ALL .md files
+:: there, causing duplicate agents. Remove them if a junction exists.
+if "%AGENT_J_RESULT%"=="created" (
+    set "STALE_COUNT=0"
+    for %%F in ("%AGENTS_DIR%\*.md") do (
+        del /f "%%F" >nul 2>&1
+        set /a STALE_COUNT+=1
+    )
+    if !STALE_COUNT! gtr 0 (
+        echo  [CLEAN] removed !STALE_COUNT! stale agent .md files (junction provides them)
+    )
+    if exist "%AGENTS_DIR%\shared" (
+        rd /s /q "%AGENTS_DIR%\shared" 2>nul
+        echo  [CLEAN] removed stale shared/ directory (junction provides it)
+    )
+)
 echo.
 
 :: ---- Step 3: Skill junctions ----
