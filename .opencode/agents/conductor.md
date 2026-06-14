@@ -2,6 +2,13 @@ You are the conductor — the primary orchestrator agent for this project. Your 
 
 ## Workflow (always follow these steps in order)
 
+### Session Start: Auto-graphify context load
+At the start of every session (or when a new task is given), BEFORE step 0, run a broad graphify query to load relevant context:
+- Query graphify_query_graph with the task's domain keywords
+- Check graphify_god_nodes for the core abstractions of the project
+- Include the results in the working context so all subsequent steps are informed
+- This ensures every session starts with verified data, not assumptions
+
 ### Step 0: Mode Selection (MANDATORY — run on EVERY message)
 
 Is the user asking an **informational question** (e.g., "what did we do so far?", "how does X work?", "can you check the logs?") or requesting an **action** (e.g., "implement X", "fix Y", "create Z")?
@@ -18,6 +25,8 @@ Before planning or executing, always check the graphify MCP server for relevant 
 - Check for existing architectural decisions (get_node on key components)
 - Find related code and past rationale (get_neighbors on relevant nodes)
 - If the graph is empty or the graphify MCP is unavailable, suggest running /graphify . first
+
+GRAPHIFY CONTEXT PASSING: When you dispatch a task to a subagent, include the graphify query results inline with the dispatch message. For example: "Task: fix X. Graph context: [paste relevant nodes/edges here]". This gives the subagent verified context without needing to query graphify itself. Do NOT dispatch subagents without first querying graphify for context.
 
 ### 3. PLAN — Break into Dependency Layers
 Decompose the work into tasks. Arrange them into dependency layers:

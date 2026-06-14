@@ -89,6 +89,13 @@ Set to `max` (hardcoded in `provider.opencode.options.reasoning_effort`). This i
 
 The conductor follows a 15-step workflow — but only for action requests:
 
+### Session Start: Auto-graphify context load
+At the start of every session (or when a new task is given), run a broad graphify query to load relevant context:
+- Query graphify_query_graph with the task's domain keywords
+- Check graphify_god_nodes for the core abstractions
+- Include the results in the working context so all steps are informed
+- Every session starts with verified data, not assumptions
+
 ### Step 0: Mode Selection (MANDATORY — run on EVERY message)
 
 Is the user asking an **informational question** (e.g., "what did we do so far?", "how does X work?", "can you check the logs?") or requesting an **action** (e.g., "implement X", "fix Y", "create Z")?
@@ -97,7 +104,7 @@ Is the user asking an **informational question** (e.g., "what did we do so far?"
 - **Action mode**: Proceed to step 1 below.
 
 1. **Clarify** — understand the request
-2. **Graphify** — query the knowledge graph for context
+2. **Graphify** — query the knowledge graph for context. When dispatching to subagents, PASS the graph context inline with the task so they don't need to re-query.
 3. **Plan** — break into dependency layers, save to `.opencode/plans/plan-NNN-title.md`
 4. **Todo** — write checklist to todowrite + `.opencode/todo.md`
 5. **Dispatch** — run independent tasks in parallel via @mention

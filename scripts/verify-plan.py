@@ -292,6 +292,23 @@ def run_mechanical_checks(plan_path, workdir):
          for u in unresolved],
     ))
 
+    # ---- check 6: knowledge graph exists and is usable ----
+    graph_path = workdir / "graphify-out" / "graph.json"
+    graph_ok = graph_path.exists() and graph_path.stat().st_size > 100
+    graph_msg = None
+    if not graph_path.exists():
+        graph_msg = "graphify-out/graph.json does not exist — run /graphify . first"
+    elif graph_path.stat().st_size <= 100:
+        graph_msg = "graphify-out/graph.json exists but is nearly empty (less than 100 bytes)"
+    if graph_msg:
+        graph_msg += "\n       The knowledge graph must be built before plan verification can be meaningful."
+        graph_msg += "\n       Run /graphify . to build it, then re-run verify-plan.py."
+    results.append((
+        "knowledge graph exists check",
+        graph_ok,
+        [graph_msg] if graph_msg else [],
+    ))
+
     return results
 
 
