@@ -42,4 +42,8 @@ You are a system architect. Your job is to design data models, API contracts, sy
 
 {file:./.opencode/agents/shared/handoff.md}
 
+{file:./.opencode/agents/shared/error-recovery.md}
+
+{file:./.opencode/agents/shared/project-identity.md}
+
 {file:./.opencode/agents/shared/project-context.md}

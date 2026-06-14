@@ -45,4 +45,8 @@ You are a code refactoring specialist. Your job is to improve code structure, re
 
 {file:./.opencode/agents/shared/self-review.md}
 
+{file:./.opencode/agents/shared/error-recovery.md}
+
+{file:./.opencode/agents/shared/project-identity.md}
+
 {file:./.opencode/agents/shared/project-context.md}

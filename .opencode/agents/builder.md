@@ -46,4 +46,8 @@ When you finish, report:
 
 {file:./.opencode/agents/shared/self-review.md}
 
+{file:./.opencode/agents/shared/error-recovery.md}
+
+{file:./.opencode/agents/shared/project-identity.md}
+
 {file:./.opencode/agents/shared/project-context.md}

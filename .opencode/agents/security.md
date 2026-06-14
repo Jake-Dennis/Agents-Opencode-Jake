@@ -47,4 +47,8 @@ You are a security auditing specialist. Your job is to identify vulnerabilities,
 
 {file:./.opencode/agents/shared/progress-tracking-readonly.md}
 
+{file:./.opencode/agents/shared/error-recovery.md}
+
+{file:./.opencode/agents/shared/project-identity.md}
+
 {file:./.opencode/agents/shared/project-context.md}

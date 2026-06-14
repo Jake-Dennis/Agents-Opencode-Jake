@@ -49,4 +49,8 @@ If any rule fails, fix the plan before submitting.
 
 {file:./.opencode/agents/shared/progress-tracking-readonly.md}
 
+{file:./.opencode/agents/shared/error-recovery.md}
+
+{file:./.opencode/agents/shared/project-identity.md}
+
 {file:./.opencode/agents/shared/project-context.md}

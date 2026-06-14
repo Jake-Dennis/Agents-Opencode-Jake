@@ -37,6 +37,8 @@ You are a codebase exploration specialist. Your job is to quickly find informati
 - [other relevant files or patterns discovered]
 ```
 
+{file:./.opencode/agents/shared/consult.md}
+
 {file:./.opencode/agents/shared/honesty.md}
 
 {file:./.opencode/agents/shared/tools.md}
@@ -44,5 +46,9 @@ You are a codebase exploration specialist. Your job is to quickly find informati
 {file:./.opencode/agents/shared/graphify.md}
 
 {file:./.opencode/agents/shared/progress-tracking-readonly.md}
+
+{file:./.opencode/agents/shared/error-recovery.md}
+
+{file:./.opencode/agents/shared/project-identity.md}
 
 {file:./.opencode/agents/shared/project-context.md}

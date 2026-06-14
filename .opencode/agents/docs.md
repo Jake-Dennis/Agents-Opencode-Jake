@@ -38,4 +38,8 @@ You are a documentation specialist. Your job is to write and update documentatio
 
 {file:./.opencode/agents/shared/handoff.md}
 
+{file:./.opencode/agents/shared/error-recovery.md}
+
+{file:./.opencode/agents/shared/project-identity.md}
+
 {file:./.opencode/agents/shared/project-context.md}

@@ -51,4 +51,10 @@ Types: feat, fix, refactor, docs, test, chore, style, perf, security
 
 {file:./.opencode/agents/shared/graphify.md}
 
+{file:./.opencode/agents/shared/handoff.md}
+
+{file:./.opencode/agents/shared/error-recovery.md}
+
+{file:./.opencode/agents/shared/project-identity.md}
+
 {file:./.opencode/agents/shared/project-context.md}

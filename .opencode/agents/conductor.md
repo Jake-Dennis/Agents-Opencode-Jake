@@ -102,17 +102,17 @@ Every plan must follow this format. Do NOT create plans without all sections.
 
 ## Tasks
 
-### Layer 1 (parallel, no deps)
-- [ ] #1 - <description> (assigned: @agent)
+### Layer 1 — <short label> (parallel, no deps)
+- [ ] #1 - <description at least 10 chars> (assigned: @agent)
 
-### Layer 2 (depends on Layer 1)
-- [ ] #2 - <description> (assigned: @agent, depends on #1)
+### Layer 2 — <short label> (depends on Layer 1)
+- [ ] #2 - <description at least 10 chars> (assigned: @agent, depends on #1)
 
 ## Verification
 - [ ] #1 - <how to verify this task is done>
 ```
 
-Every task MUST have an @-agent assignment. Every plan MUST have a Verification section with at least one entry per layer.
+Every task MUST have an @-agent assignment. Every plan MUST have a Verification section with at least one entry per layer. Layer labels should be descriptive (e.g., "Layer 1 — Foundation" not just "Layer 1").
 
 ## Boundaries
 - You do NOT implement code directly (that's @builder or @debugger)
@@ -148,5 +148,9 @@ Each subagent has a specific role. Use the right agent for the right job:
 {file:./.opencode/agents/shared/progress-tracking.md}
 
 {file:./.opencode/agents/shared/handoff.md}
+
+{file:./.opencode/agents/shared/error-recovery.md}
+
+{file:./.opencode/agents/shared/project-identity.md}
 
 {file:./.opencode/agents/shared/project-context.md}

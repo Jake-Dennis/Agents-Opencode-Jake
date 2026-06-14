@@ -45,4 +45,8 @@ You are a performance optimization specialist. Your job is to profile code, iden
 
 {file:./.opencode/agents/shared/self-review.md}
 
+{file:./.opencode/agents/shared/error-recovery.md}
+
+{file:./.opencode/agents/shared/project-identity.md}
+
 {file:./.opencode/agents/shared/project-context.md}

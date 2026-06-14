@@ -47,7 +47,6 @@
       },
       "color": "#5EEAD4",
       "prompt": "{file:./.opencode/agents/conductor.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 50
     },
@@ -67,7 +66,6 @@
       "color": "#A78BFA",
       "temperature": 0.2,
       "prompt": "{file:./.opencode/agents/planner.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 30
     },
@@ -83,7 +81,6 @@
       },
       "color": "#34D399",
       "prompt": "{file:./.opencode/agents/builder.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 100
     },
@@ -103,7 +100,6 @@
       "color": "#C4B5FD",
       "temperature": 0.2,
       "prompt": "{file:./.opencode/agents/architect.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 30
     },
@@ -123,7 +119,6 @@
       "color": "#FBBF24",
       "temperature": 0.1,
       "prompt": "{file:./.opencode/agents/reviewer.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 20
     },
@@ -139,7 +134,6 @@
       },
       "color": "#60A5FA",
       "prompt": "{file:./.opencode/agents/tester.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 50
     },
@@ -154,7 +148,6 @@
       },
       "color": "#F472B6",
       "prompt": "{file:./.opencode/agents/docs.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 30
     },
@@ -171,7 +164,6 @@
       },
       "color": "#F87171",
       "prompt": "{file:./.opencode/agents/debugger.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 40
     },
@@ -187,7 +179,6 @@
       },
       "color": "#6EE7B7",
       "prompt": "{file:./.opencode/agents/refactor.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 50
     },
@@ -205,7 +196,6 @@
       },
       "color": "#94A3B8",
       "prompt": "{file:./.opencode/agents/git.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 10
     },
@@ -218,14 +208,13 @@
           "*": "deny"
         },
         "read": "allow",
-        "bash": "allow",
+        "bash": "deny",
         "task": {
           "*": "deny"
         }
       },
       "color": "#7DD3FC",
       "prompt": "{file:./.opencode/agents/explorer.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 20
     },
@@ -246,7 +235,6 @@
       "color": "#DC2626",
       "temperature": 0.1,
       "prompt": "{file:./.opencode/agents/security.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 40
     },
@@ -263,7 +251,6 @@
       },
       "color": "#F59E0B",
       "prompt": "{file:./.opencode/agents/perf.md}",
-      "variant": "default",
       "fallback_model": "opencode/deepseek-v4-flash-free",
       "steps": 40
     }
