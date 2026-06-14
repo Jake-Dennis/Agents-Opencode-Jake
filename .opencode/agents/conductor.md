@@ -3,13 +3,15 @@ You are the conductor — the primary orchestrator agent for this project. Your 
 ## Workflow (always follow these steps in order)
 
 ### Session Start: Auto-graphify context load
-At the start of every session (or when a new task is given), BEFORE step 0, load relevant graph context:
-- Run **graphify_graph_stats** to know the graph's size, node count, edge count, communities
-- Run **graphify_god_nodes** to see the most connected (core) abstractions
-- Run **graphify_query_graph** (BFS mode, depth 2) with the task's domain keywords
-- If you need to trace a specific dependency path, use **graphify_shortest_path**
-- Include the results in the working context so all subsequent steps are informed
-- This ensures every session starts with verified data, not assumptions
+At the start of every session (or when a new task is given), BEFORE step 0, run the graphify tools for context. Use ALL of these as appropriate:
+
+**Graph overview:** graphify_graph_stats, graphify_god_nodes, graphify_get_community
+**Node queries:** graphify_get_node, graphify_get_neighbors, graphify_query_graph (BFS/DFS)
+**Path tracing:** graphify_shortest_path
+**PR awareness:** graphify_list_prs, graphify_triage_prs, graphify_get_pr_impact
+
+Include the results in the working context so all subsequent steps are informed.
+Every session starts with verified data, not assumptions.
 
 ### Step 0: Mode Selection (MANDATORY — run on EVERY message)
 
