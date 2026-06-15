@@ -579,3 +579,38 @@ o verification tasks found). Fixed.
 - **Architectural insight:** This was a 1-character fix (`%REPO_DIR%` → `%REPO_DIR:~0,-1%`) hidden inside a 4-line block of `"%REPO_DIR%...` patterns. The bug had been latent since the .bat was written — every `global-setup.bat` run produced a broken install. Nobody noticed because the broken install still "works" in the sense that the agent files exist; they just have unresolved `{file:}` references that only fail in projects that don't have the source repo layout. The 1-character fix + 5-line test = 191 insertions. The hidden cost of soft-constraint code paths is real: a 1-character typo costs more time to debug than to fix.
 - **Status:** Complete (5 files changed, 191 insertions, 2 deletions; pushed to origin/main as 8df94f0)
 
+## 2026-06-15T00:00:00Z
+- **Task:** Plan 003 — Make the source folder itself the deliverable. The user kept asking for "a folder I can easy copy and paste into a project and it work." The previous design had three concepts (source with includes, generated bundle, install via .bat) when what they wanted was ONE folder.
+- **Agents:** @conductor (the refactor; no other agents involved)
+- **Action:**
+  - Inlined all `{file:}` references in the 13 source agent `.md` files (6-7 refs each, ~9 KB per file added)
+  - Inlined the one remaining `{file:}` ref in `shared/project-identity.md` (the other 8 shared files were already self-contained)
+  - Added `.opencode/agents/README.md` explaining the folder and how to use it
+  - Dropped `dist/` directory (15 files), `scripts/build-self-contained-bundle.py`, and `tests/test_bundle.py` — all redundant
+  - Updated `INSTALL.md` to point at `.opencode/agents/` as the deliverable
+- **Test regression discovered and fixed:**
+  - `tests/test_jobs.py::test_t_jb_6_conductor_and_git_excluded` asserts the conductor and git agents do NOT have the "Live progress tracking" content in their source (T-JB-6 design: conductor writes to todo/work-log, git stays on bash — neither does live progress via jobs.md). The original source used `{file:}` references so the string "Live progress tracking" only appeared in `shared/progress-tracking.md` (not in the source). My inlining brought the string into conductor.md, breaking the test. **Fix: removed the inlined "Live progress tracking" section from conductor.md only.** The 11 write-capable agents still have it inlined (they're supposed to). Conductor and git are still excluded (as designed).
+- **Files modified/added/removed:**
+  - 13 `.opencode/agents/*.md` modified (inlined content)
+  - 1 `.opencode/agents/shared/project-identity.md` modified (1 ref inlined)
+  - 1 `.opencode/agents/README.md` added
+  - 1 `INSTALL.md` modified (replaced bundle section with copy-paste section)
+  - 1 `.opencode/plans/completed/plan-003-source-is-the-deliverable.md` added
+  - 15 `dist/agents/*` deleted
+  - 1 `scripts/build-self-contained-bundle.py` deleted
+  - 1 `tests/test_bundle.py` deleted
+  - 1 `.opencode/work-log.md` (this entry)
+- **Verification:**
+  - Audit: 0 active `{file:}` references across all 22 .md files in `.opencode/agents/` (13 agents + 9 shared)
+  - `python -m pytest tests/ -q --ignore=test_agents_runtime --ignore=test_agent_safety --ignore=test_verify_plan` → 229 pass, 1 skip
+  - `test_t_jb_6_conductor_and_git_excluded` passes (design intent preserved)
+  - Copy-paste test from plan-002 still applies: drop the folder in, conductor works
+- **Decisions:**
+  - **Kept the `shared/` subfolder.** The user said subfolders are fine. The 13 agents don't depend on shared/ (content is inlined), but the shared/ folder is useful as reference and for easy editing. Future edits to shared/*.md files would need to be re-inlined manually into the 13 agent files (no auto-update).
+  - **Kept the `.bat`'s `resolve_includes.py` step as a no-op safety net.** It does nothing on already-inlined files but protects against any future file that adds a `{file:}` reference. The `\"` escape bug we just fixed in the .bat is now less critical (the .bat's call to `resolve_includes` is a no-op), but the fix is still correct.
+  - **Did NOT remove the `shared/` files** even though they're now redundant (no agent references them). They might still be useful for reference or for future features.
+  - **Removed the redundant `dist/` directory** that was committed earlier in plan-002. Plan-002 shipped a "self-contained bundle" as a separate artifact; plan-003 makes the source itself self-contained, so the bundle is no longer needed.
+  - **Removed the test that asserted the bundle was correct** (`tests/test_bundle.py`). The source IS the bundle, and `tests/test_install.py` already verifies the install is self-contained.
+- **Architectural insight:** The user kept asking for "1 folder" because the previous design was over-engineered for their actual need. The bundle (a build artifact) was a useful intermediate, but it added a layer of "what do I copy to another project?" Once they had to ask the question, the design was wrong. Source = install = copyable = one folder, period. Plan-003 deletes the question.
+- **Status:** Complete (33 files changed, 2139 insertions, 3435 deletions; pushed to origin/main as 3eae6ef)
+
