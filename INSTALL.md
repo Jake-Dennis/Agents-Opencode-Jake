@@ -109,50 +109,30 @@ opencode .
 /graphify .
 ```
 
-## Use the Agents in Any Project (self-contained bundle)
+## Use the Agents in Any Project (copy-paste)
 
-The agent prompts are designed to be **fully portable**. Each agent's `.md` file is a single self-contained unit — no broken `{file:...}` references, no missing dependencies.
+The \.opencode/agents/\ folder IS the deliverable. It is fully self-contained — every \.md\ file in the top level has all \{file:...}\ references already inlined. The folder can have subfolders (it does: \shared/\), and the subfolders are independent reference material — the 13 agents do not depend on them.
 
-The agents detect their environment on every session start and operate in one of two modes:
+\\ash
+# Copy one agent
+cp .opencode/agents/conductor.md /path/to/other-project/.opencode/agents/
 
-| Mode | When | Behavior |
-|---|---|---|
-| **Dispatch mode** | env exposes a `task` / `delegate` / `@mention` tool | Conductor dispatches to real subagents in parallel; subagent boundaries are a hard contract |
-| **Single-agent mode** | no dispatch tool detected | Conductor plays all roles (builder, reviewer, tester, etc.) sequentially using the subagent `.md` files as checklists; honest self-review |
+# Copy all 13 agents (or any subset)
+cp .opencode/agents/*.md /path/to/other-project/.opencode/agents/
 
-The conductor announces its mode in the first response, so the user always knows what to expect.
+# Copy the whole folder (agents + shared reference)
+cp -r .opencode/agents /path/to/other-project/.opencode/
+\
+That is it. No build step. No \global-setup\ required. No graphify required. No skill symlinks required. The conductor will work in single-agent mode (or dispatch mode if the env exposes a \	ask\ tool) and announce its mode in the first response.
 
-### Option A: Use the pre-built bundle (easiest)
+The folder is the artifact. See \.opencode/agents/README.md\ for details.
 
-The `dist/agents/` directory contains 13 self-contained agent files plus a `MANIFEST.md`. Copy them to your target project:
+### Verifying the copy
 
-```bash
-# Build the bundle (idempotent)
-python scripts/build-self-contained-bundle.py
-
-# Copy what you need
-cp dist/agents/conductor.md /path/to/your/project/.opencode/agents/
-cp dist/agents/builder.md    /path/to/your/project/.opencode/agents/
-# ... or copy all 13:
-cp -r dist/agents/*.md /path/to/your/project/.opencode/agents/
-```
-
-This works in any opencode build, any AI client that reads `.md` agent prompts, and any environment. No `global-setup` required, no graphify required, no skill symlinks required.
-
-### Option B: Use global-setup (full feature set)
-
-The standard `global-setup.sh` / `global-setup.bat` install also produces self-contained agents (via `resolve_includes.py`) and adds the graphify skill, plugin, and merged config. Use this when you want the full knowledge-graph-backed workflow.
-
-### Verifying a bundle install
-
-The 5 tests in `tests/test_bundle.py` assert:
-- The bundle script exists
-- All 13 agents are produced
-- Each bundled file has zero remaining `{file:...}` references
-- The bundle includes a `MANIFEST.md`
-- Each bundled file is strictly larger than its source (proves inlining happened)
-
-Run: `python -m pytest tests/test_bundle.py -v`
+\\ash
+python -m pytest tests/test_install.py -v
+\
+The test \	est_T_IN_2_global_setup_installs_resolved_agents\ runs the full installer against a temp HOME and verifies the installed \conductor.md\ is self-contained.
 
 ## Building the Knowledge Graph
 

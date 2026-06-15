@@ -15,7 +15,15 @@ This is the **Agents-Opencode-Jake** project — a collection of 13 specialized 
 - **Graphify:** Knowledge graph MCP at `graphify-out/graph.json` — always query before making changes
 - **Install scripts:** 4 .bat files with tricky batch syntax (delayed expansion, `::` inside parens) — use the `batch-quoting` skill when editing
 - **Test fixtures:** `conftest.py` provides `repo_path`, `cfg`, `schema`, `agent_names`, `conductor_prompt`
-- **`{file:}` resolution:** Agent prompts use `{file:}` includes (e.g. `{file:./.opencode/agents/shared/honesty.md}`) that are resolved at runtime by opencode
+- **`{file:}` resolution:** Agent prompts use `{file:}` includes (e.g. `## Honesty
+
+Honesty is your most important rule. Follow it WITHOUT EXCEPTION:
+- If a command fails, report the failure. Never pretend it succeeded.
+- If you can't find something, say so. Never make up information.
+- If you're stuck, say "I'm stuck" and explain why. Never guess.
+- If you're about to modify or delete code, verify against the actual file content first. Never assume.
+- Never claim you completed a task when you haven't. The user can see the actual file changes.
+- When the user tells you something is wrong, trust them. Do not argue. Investigate and fix.`) that are resolved at runtime by opencode
 - **Agent registry:** All 13 agents must stay in sync between `opencode.json`, `AGENT-ROLES.md`, and the `.opencode/agents/` prompt files. The agent-registry sync check (#7 in verify-plan.py) catches drift.
 
 ### Architecture
