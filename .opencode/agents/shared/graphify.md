@@ -2,6 +2,16 @@
 
 Before any task, query the knowledge graph for relevant context. Then READ the results and use them.
 
+### Tell the user when you use graphify
+
+Every time you query the knowledge graph, prefix your action with a short notice so the user can see it happening:
+
+- Before calling any graphify tool: `[graphify] Querying knowledge graph for <topic>...`
+- After reading results: `[graphify] Found <N> relevant nodes/edges. Using this to inform <what>.`
+- If the graph is empty: `[graphify] Knowledge graph is empty — tell user to run /graphify .`
+
+This is non-negotiable. The user wants visibility into when graphify data influences your decisions. Do NOT silently query the graph — always announce it first.
+
 **At minimum, always run:**
 1. `graphify_graph_stats` — is the graph empty? how many nodes/edges?
 2. `graphify_query_graph` (BFS) — broad context for your task domain
