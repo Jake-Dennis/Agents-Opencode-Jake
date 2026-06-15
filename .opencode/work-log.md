@@ -548,3 +548,34 @@ o verification tasks found). Fixed.
   4. **Adding 23 regression tests** that lock in the new protocol
 - **Status:** Complete (16 files modified + 4 new + 14 bundled artifacts; full suite at 245 pass / 1 pre-existing fail / 1 skipped)
 
+## 2026-06-15T00:00:00Z
+- **Task:** Fix the `global-setup.bat` path bug. The user ran the .bat installer; it reported "[OK] resolved shared includes for all agents" but the installed conductor.md had 9 unresolved `{file:}` references. The agents would not work in any project. **Diagnose and fix.**
+- **Agents:** @conductor (root cause analysis + .bat edit + test + commit; no other agents involved)
+- **Root cause:** `set "REPO_DIR=%~dp0"` ends with a backslash. When wrapped in quotes (`--repo-root "%REPO_DIR%"`), cmd treats the trailing `\"` as an escape sequence, consumes the closing quote, and a literal `"` ends up inside the path. resolve_includes.py saw `--repo-root "C:\path\Jake\""` (literal quote), tried to look up `./.opencode/agents/shared/honesty.md` relative to that broken path, failed silently, left all `{file:}` references unresolved, and returned exit code 0. The .bat saw the success exit code and reported `[OK]` even though nothing was resolved. The script even printed WARNINGS about the broken path, but the .bat suppresses stderr with `>nul 2>&1`. The user never saw the warnings.
+- **Same bug in:** `sync_commands.py "%REPO_DIR%" "%GLOBAL_CONFIG%"` (Step 4d of global-setup.bat). Same `\"` escape. Same silent failure mode. (This call passes the broken path as an argument, so it would corrupt any subsequent path concatenation that joined the result with a filename.)
+- **Files affected (no broken uses, but the bug pattern is the same and worth documenting):** setup.bat, uninstall.bat, uninstall-global.bat. None had actual broken path uses in quoted args, but they all use `%~dp0` and could regress; added comments explaining the bug in each.
+- **Action:** Apply the fix and add a regression test.
+  - `global-setup.bat`: change `--repo-root "%REPO_DIR%"` to `--repo-root "%REPO_DIR:~0,-1%"` (strip trailing backslash inline at the only callsite that ends with the variable). Also fix the `sync_commands.py "%REPO_DIR%"` call. Add a comment block at the top explaining why REPO_DIR keeps its trailing backslash (for concatenations like `%REPO_DIR%.opencode\...`) and why the `\"` escape is fixed at each callsite (with the `%REPO_DIR:~0,-1%` idiom).
+  - `setup.bat`, `uninstall.bat`, `uninstall-global.bat`: add the same explanatory comment (no actual broken uses in these three — verified by the new test).
+  - `tests/test_install.py`: new test file with two test families:
+    - `T_IN_1` (4 cases, parametrized): static check that each .bat doesn't have `"%VAR%"` (variable as last thing in a quoted arg) outside of comments. The test caught the `sync_commands.py` bug I would have missed otherwise.
+    - `T_IN_2` (Windows-only): end-to-end test that runs `global-setup.bat --unattended --force` against a temp HOME and verifies the installed `conductor.md` has 0 unresolved `{file:}` refs and is the expected resolved size (>15 KB). This is the user-visible contract.
+- **Files modified/added:**
+  - `global-setup.bat` (2 path fixes, comment block)
+  - `setup.bat` (comment block)
+  - `uninstall.bat` (comment block)
+  - `uninstall-global.bat` (comment block)
+  - `tests/test_install.py` (new, 145 lines, 5 tests)
+  - `.opencode/work-log.md` (this entry)
+- **Verification:**
+  - Manual fresh `.bat` run: all 13 agents installed at expected sizes (10-22 KB), 0 unresolved `{file:}` refs each
+  - `python -m pytest tests/test_install.py -v` → 5/5 pass (4 static + 1 end-to-end)
+  - Full suite: 250/252 pass (the 2 pre-existing failures unrelated to this work — `test_real_plan_001` and `T_AS_1` / `T_AS_5`)
+- **Decisions:**
+  - **Did NOT strip the trailing backslash from `%~dp0` globally.** First attempt was to strip it right after `set "REPO_DIR=%~dp0"`, but this broke path concatenations like `%REPO_DIR%.opencode\...` (which need the trailing backslash). The correct fix is to strip inline ONLY at the specific places where the variable is the LAST thing in a quoted argument. Concatenations are unaffected.
+  - **Two layers of testing.** The static test (`T_IN_1`) is fast and catches the bug pattern at code review time. The end-to-end test (`T_IN_2`) is slower but proves the install actually works. Both are needed: the static test catches regression during development; the end-to-end test catches integration issues (e.g., the resolution script itself failing, the merge step corrupting files, etc.).
+  - **The T_IN_1 test caught a bug I would have missed.** The first test run failed because of `sync_commands.py "%REPO_DIR%"` — a second instance of the same bug pattern. Without the static test, this would have been a separate "why does Step 4d fail?" debugging session.
+  - **Did not fix pre-existing test failures.** `test_real_plan_001` and `T_AS_1` / `T_AS_5` are unrelated to this work. They're on the todo list.
+- **Architectural insight:** This was a 1-character fix (`%REPO_DIR%` → `%REPO_DIR:~0,-1%`) hidden inside a 4-line block of `"%REPO_DIR%...` patterns. The bug had been latent since the .bat was written — every `global-setup.bat` run produced a broken install. Nobody noticed because the broken install still "works" in the sense that the agent files exist; they just have unresolved `{file:}` references that only fail in projects that don't have the source repo layout. The 1-character fix + 5-line test = 191 insertions. The hidden cost of soft-constraint code paths is real: a 1-character typo costs more time to debug than to fix.
+- **Status:** Complete (5 files changed, 191 insertions, 2 deletions; pushed to origin/main as 8df94f0)
+
