@@ -606,6 +606,8 @@ def test_global_setup_bat_always_rewrites_agent_paths():
 
     The fix copies files directly to the agents directory (no junction,
     no subdirectory) and rewrites paths to {file:./agents/X}.
+    It also runs resolve_includes.py to inline shared sections so agents
+    work in any project without {file:} dependency.
     """
     text = _read_bat("global-setup.bat")
     lines = text.splitlines()
@@ -634,6 +636,12 @@ def test_global_setup_bat_always_rewrites_agent_paths():
         "when files are copied"
     )
 
+    # Must call resolve_includes.py after copying agent files
+    assert "resolve_includes" in text, (
+        "global-setup.bat must run resolve_includes.py to inline shared "
+        "sections so agents work in any project"
+    )
+
     # No junction references in step 4c code (comments are OK)
     code_lines = [l for l in step_4c_text.splitlines() if not l.strip().startswith("::")]
     code_text = "\n".join(code_lines)
@@ -645,4 +653,30 @@ def test_global_setup_bat_always_rewrites_agent_paths():
     assert "Agents-Opencode-Jake/" not in code_text, (
         "global-setup.bat step 4c must not use Agents-Opencode-Jake subdirectory"
     )
+
+
+def test_resolve_includes_script_resolves_file_refs():
+    """T-BAT-RESOLVE: resolve_includes.py inlines {file:} references.
+
+    Each agent .md file references shared sections like
+    {file:./.opencode/agents/shared/graphify.md}. When copied to the
+    global agents directory, these references must be resolved to inline
+    content so agents work in any project.
+    """
+    import subprocess
+    script_dir = Path(__file__).resolve().parent.parent / ".opencode" / "scripts"
+    script = script_dir / "resolve_includes.py"
+    assert script.exists(), f"resolve_includes.py not found: {script}"
+
+    # Run --help to verify it parses correctly
+    r = subprocess.run(
+        [sys.executable, str(script), "--help"],
+        capture_output=True, text=True
+    )
+    assert r.returncode == 0, (
+        f"resolve_includes.py --help failed:\n"
+        f"stdout={r.stdout}\nstderr={r.stderr}"
+    )
+    assert "source_dir" in r.stdout
+    assert "output_dir" in r.stdout
 

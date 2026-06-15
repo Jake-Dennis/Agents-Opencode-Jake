@@ -30,6 +30,22 @@ set "MANIFEST=%CONFIG_DIR%\.opencode-jake-installed.json"
 set "PROJECT_CONFIG=%REPO_DIR%opencode.json"
 set "MERGE_HELPER=%REPO_DIR%.opencode\scripts\opencode_jsonc_merge.py"
 
+:: --- Resolve Python (needed early for include resolution in step 2) ---
+set "PY="
+for /f "delims=" %%P in ('where python 2^>nul') do (
+    if not defined PY set "PY=%%P"
+)
+if not defined PY (
+    for /f "delims=" %%P in ('where py 2^>nul') do (
+        if not defined PY set "PY=%%P"
+    )
+)
+if not defined PY (
+    echo  [ERROR] Python not found. Please install Python 3.10+ or set PATH.
+    pause
+    exit /b 5
+)
+
 echo ============================================
 echo  Agents-Opencode-Jake — Global Installer
 echo ============================================
@@ -88,11 +104,25 @@ if %AGENT_MD_COUNT% gtr 0 (
     for %%F in ("%AGENTS_DIR%\*.md") do del /f "%%F" >nul 2>&1
     if exist "%AGENTS_DIR%\shared" rd /s /q "%AGENTS_DIR%\shared" 2>nul
     REM Copy only the 13 agent .md files (not shared/)
+    set "AGENT_MD_COUNT=0"
     for %%F in ("%REPO_DIR%.opencode\agents\*.md") do (
         copy /Y "%%F" "%AGENTS_DIR%\%%~nxF" >nul 2>&1
         set /a AGENT_MD_COUNT+=1
     )
     echo  [OK] copied !AGENT_MD_COUNT! agent .md files to %AGENTS_DIR%
+    REM Resolve {file:} includes so agents work in any project
+    REM (the shared/ directory is NOT copied to avoid opencode reading it
+    REM as agent definitions, so {file:} references must be inlined now)
+    if exist "%REPO_DIR%.opencode\scripts\resolve_includes.py" (
+        "!PY!" "%REPO_DIR%.opencode\scripts\resolve_includes.py" "%AGENTS_DIR%" "%AGENTS_DIR%" --repo-root "%REPO_DIR%" >nul 2>&1
+        if !errorlevel! equ 0 (
+            echo  [OK] resolved shared includes for all agents
+        ) else (
+            echo  [WARN] include resolution returned errorlevel !errorlevel!
+        )
+    ) else (
+        echo  [WARN] resolve_includes.py not found — agents may not work in other projects
+    )
     set "AGENT_J_RESULT=copied"
 ) else if %HAS_AGENT_KEY%==1 (
     echo  [INFO] No .opencode\agents\*.md files — agents are in opencode.json,
@@ -118,27 +148,8 @@ if !SKILL_COUNT! equ 0 (
     echo  [INFO] No skill directories to link
 )
 echo.
-
-:: ---- Step 4: opencode.jsonc merge ----
 echo [4/5] Merging into global opencode.jsonc...
-
-:: Resolve Python (try `python`, then `py`). Skip `python3` (MS Store stub).
-set "PY="
-for /f "delims=" %%P in ('where python 2^>nul') do (
-    if not defined PY set "PY=%%P"
-)
-if not defined PY (
-    for /f "delims=" %%P in ('where py 2^>nul') do (
-        if not defined PY set "PY=%%P"
-    )
-)
-if not defined PY (
-    echo  [ERROR] Python not found. Please install Python 3.10+ or set PATH.
-    echo          Without Python, the global installer cannot merge opencode.jsonc.
-    pause
-    exit /b 5
-)
-echo  Python: !PY!
+echo   Python: !PY!
 
 :: ---- Step 4a: Ensure graphify Python package is installed ----
 :: The MCP config in opencode.jsonc references `python3 -m graphify.serve`,
