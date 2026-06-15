@@ -22,6 +22,12 @@ if "%GLOBAL_SETUP_FORCE%"=="1"    set "FORCE=1"
 
 :: --- Paths ---
 set "REPO_DIR=%~dp0"
+:: NOTE: REPO_DIR keeps the trailing backslash (from %~dp0) because the
+:: .bat concatenates it with filenames (e.g. `%REPO_DIR%.opencode\...`).
+:: The trailing backslash is required for that concatenation. The bug it
+:: causes in quoted args like `--repo-root "%REPO_DIR%"` (where the `\"`
+:: escape consumes the closing quote and puts a literal `"` in the path)
+:: is fixed inline at each callsite via the `%REPO_DIR:~0,-1%` idiom.
 set "CONFIG_DIR=%USERPROFILE%\.config\opencode"
 set "AGENTS_DIR=%CONFIG_DIR%\agents"
 set "SKILLS_DIR=%CONFIG_DIR%\skills"
@@ -114,7 +120,7 @@ if %AGENT_MD_COUNT% gtr 0 (
     REM (the shared/ directory is NOT copied to avoid opencode reading it
     REM as agent definitions, so {file:} references must be inlined now)
     if exist "%REPO_DIR%.opencode\scripts\resolve_includes.py" (
-        "!PY!" "%REPO_DIR%.opencode\scripts\resolve_includes.py" "%AGENTS_DIR%" "%AGENTS_DIR%" --repo-root "%REPO_DIR%" >nul 2>&1
+        "!PY!" "%REPO_DIR%.opencode\scripts\resolve_includes.py" "%AGENTS_DIR%" "%AGENTS_DIR%" --repo-root "%REPO_DIR:~0,-1%" >nul 2>&1
         if !errorlevel! equ 0 (
             echo  [OK] resolved shared includes for all agents
         ) else (
@@ -264,7 +270,7 @@ set "CMD_COUNT=0"
 for /f %%F in ('dir /b "%REPO_DIR%.opencode\commands\*.md" 2^>nul') do set /a CMD_COUNT+=1
 if %CMD_COUNT% gtr 0 (
     echo [4d/5] Syncing commands to global config...
-    "!PY!" "%REPO_DIR%.opencode\scripts\sync_commands.py" "%REPO_DIR%" "%GLOBAL_CONFIG%"
+    "!PY!" "%REPO_DIR%.opencode\scripts\sync_commands.py" "%REPO_DIR:~0,-1%" "%GLOBAL_CONFIG%"
     echo.
 )
 

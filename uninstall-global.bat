@@ -20,6 +20,9 @@ if "%GLOBAL_SETUP_FORCE%"=="1"    set "FORCE=1"
 
 :: --- Paths ---
 set "REPO_DIR=%~dp0"
+:: NOTE: REPO_DIR keeps the trailing backslash for concatenations like
+:: `%REPO_DIR%.opencode\skills\*`. The `\"` escape bug in quoted uses
+:: is fixed inline via the `%REPO_DIR:~0,-1%` idiom.
 set "CONFIG_DIR=%USERPROFILE%\.config\opencode"
 set "AGENTS_DIR=%CONFIG_DIR%\agents"
 set "SKILLS_DIR=%CONFIG_DIR%\skills"

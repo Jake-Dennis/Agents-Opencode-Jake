@@ -22,6 +22,12 @@ if "%SETUP_FORCE%"=="1"    set "FORCE=1"
 
 :: --- Figure out where we are ---
 set "SCRIPT_DIR=%~dp0"
+:: NOTE: SCRIPT_DIR keeps the trailing backslash because the .bat uses it
+:: in concatenations like `%SCRIPT_DIR%scripts\foo.py`. The trailing
+:: backslash is REQUIRED there. The bug it causes in quoted args like
+:: `"%SCRIPT_DIR%AGENTS.md"` (where the `\\"` gets parsed as escaped
+:: quote, putting a literal `"` in the path) is fixed inline at each
+:: callsite via the `%SCRIPT_DIR:~0,-1%` idiom.
 set "TARGET_DIR=%CD%\"
 
 echo ============================================

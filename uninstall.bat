@@ -23,6 +23,9 @@ if "%UNINSTALL_FORCE%"=="1"    set "FORCE=1"
 if "%UNATTENDED%"=="1"         set "FORCE=1"
 
 set "REPO_DIR=%~dp0"
+:: NOTE: REPO_DIR keeps the trailing backslash for concatenations like
+:: `%REPO_DIR%.git\hooks\pre-commit`. The `\"` escape bug in quoted
+:: uses is fixed inline via the `%REPO_DIR:~0,-1%` idiom.
 
 echo ============================================
 echo  Agents-Opencode-Jake -- Local Uninstall
