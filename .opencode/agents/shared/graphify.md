@@ -1,6 +1,10 @@
-## Graphify — read the data, then act
+## Graphify — MANDATORY precondition
 
-Before any task, query the knowledge graph for relevant context. Then READ the results and use them.
+**Do NOT proceed with your task until you have knowledge graph context.** This is not a suggestion — it is a hard precondition. If you skip this step, your output will be based on assumptions instead of verified project data.
+
+**Where does your graph context come from?**
+- If your dispatch includes a `Graph context:` block from the conductor → use it. You're done. Read it carefully and incorporate it.
+- If your dispatch does NOT include graph context → you MUST query the knowledge graph yourself before doing anything else.
 
 ### Tell the user when you use graphify
 
@@ -33,5 +37,11 @@ This is non-negotiable. The user wants visibility into when graphify data influe
 - Found a node with a field definition? Use that exact field name, don't guess.
 - Found a relationship? Follow it. Don't assume the connection.
 - Found a past decision? Respect it. Don't reinvent something already decided.
+
+### Self-check before producing output
+Before writing any code, design, or review, verify:
+1. Do I have graph context? (either from dispatch or from my own query)
+2. Have I incorporated the graph data into my reasoning?
+If the answer to either is NO, stop and query the graph now.
 
 If the graph is empty, stop and tell the user to run /graphify .

@@ -422,3 +422,29 @@ o verification tasks found). Fixed.
 - **Verify:** 199 tests pass, 2 pre-existing failures (T_AS_1, T_AS_5), 1 skipped
 - **Commit:** `8e1ae46` (40 files changed, 1329 insertions, 203 deletions)
 - **Status:** Complete
+
+## 2026-06-15 — Harden graphify context passing for all agents
+- **Task:** Fix the structural gap where subagents don't consistently use graphify for context
+- **Agents:** conductor (direct, all edits inline)
+- **Files (modified):**
+  - `AGENTS.md` (added "Dispatch Template (MANDATORY)" section after workflow step 5, updated step 5 to reference it)
+  - `.opencode/agents/shared/graphify.md` (rewritten: "MANDATORY precondition" heading, dispatch-vs-self-query decision tree, self-check section before output)
+  - `.opencode/agents/builder.md` (added MANDATORY graphify one-liner at top)
+  - `.opencode/agents/debugger.md` (added MANDATORY graphify one-liner at top)
+  - `.opencode/agents/architect.md` (added MANDATORY graphify one-liner at top)
+  - `.opencode/agents/tester.md` (added MANDATORY graphify one-liner at top)
+  - `.opencode/agents/reviewer.md` (added MANDATORY graphify one-liner at top)
+  - `.opencode/agents/refactor.md` (added MANDATORY graphify one-liner at top)
+  - `.opencode/agents/docs.md` (added MANDATORY graphify one-liner at top)
+  - `.opencode/agents/git.md` (added MANDATORY graphify one-liner at top)
+  - `.opencode/agents/explorer.md` (added MANDATORY graphify one-liner at top)
+  - `.opencode/agents/security.md` (added MANDATORY graphify one-liner at top)
+  - `.opencode/agents/perf.md` (added MANDATORY graphify one-liner at top)
+  - `.opencode/agents/planner.md` (added MANDATORY graphify one-liner at top)
+- **Decisions:**
+  - **Three-layer enforcement:** (1) Conductor MUST include `Graph context:` block in every dispatch (AGENTS.md template), (2) shared/graphify.md upgraded from soft "should" to hard "MANDATORY precondition" with decision tree (dispatch context vs self-query), (3) Every agent .md file has a MANDATORY one-liner at the very top (before role description) so it's the first instruction read
+  - **Dispatch template is structural, not prompt-only:** The conductor's workflow step 5 now says "Every dispatch MUST include a Graph context block" with a concrete template. This makes it impossible to dispatch without including graph data.
+  - **Subagent self-check:** shared/graphify.md now has a "Self-check before producing output" section that forces the agent to verify it has graph context before writing any code/design/review
+  - **One-liner at top of agent files:** Placed before the role description (line 1) so it's the very first thing the model reads. Uses blockquote format (`>`) for visual prominence. References the detailed instructions in the shared graphify include below.
+- **Root cause analysis:** The conductor was querying graphify but not passing results to subagents. Subagents had a soft "before any task, query" instruction buried 4th among 9 shared includes at the bottom of their prompts. LLMs predictably skipped it.
+- **Status:** Complete (15 files modified, all edits verified)

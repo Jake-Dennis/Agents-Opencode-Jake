@@ -115,8 +115,29 @@ Is the user asking an **informational question** (e.g., "what did we do so far?"
 2. **Graphify** — query the knowledge graph for context. Announce with `[graphify]` before and after. When dispatching to subagents, PASS the graph context inline with the task so they don't need to re-query.
 3. **Plan** — break into dependency layers, save to `.opencode/plans/plan-NNN-title.md`
 4. **Todo** — write checklist to todowrite + `.opencode/todo.md`
-5. **Dispatch** — run independent tasks in parallel via @mention
+5. **Dispatch** — run independent tasks in parallel via @mention. **Every dispatch MUST include a `Graph context:` block** (see template below). No exceptions.
 6. **Track** — mark tasks in_progress / completed
+
+### Dispatch Template (MANDATORY)
+
+Every subagent dispatch MUST include graph context. If you haven't queried graphify yet, do it NOW before dispatching. If the graph is empty, say so explicitly.
+
+```
+@agent Task: <description of what to do>
+
+Graph context:
+- Relevant nodes: <list nodes from graphify query — names, types, line numbers>
+- Communities: <list affected community IDs and what they contain>
+- Key relationships: <list relevant edges — imports, calls, depends-on>
+- Past decisions: <list relevant ADRs if any>
+```
+
+If no graph context is available:
+```
+Graph context: (empty — no graphify data available, run /graphify . to build)
+```
+
+The subagent will use this context instead of re-querying from scratch. This is the primary mechanism for passing knowledge graph data to subagents.
 7. **Review** — @reviewer checks every output
 8. **Verify** — re-read plan, double-check every task against actual code/files/tests
 9. **Archive** — move verified-complete plans to `.opencode/plans/completed/`
@@ -152,16 +173,6 @@ Add to your project's `opencode.json`:
 Or copy/symlink the `.opencode/` directory into your project.
 
 ## graphify
-
-### Graphify Transparency Rule (HARD REQUIREMENT)
-**Every** graphify tool call MUST be prefixed with an announcement:
-
-1. Before the call: `[graphify] Querying knowledge graph for <topic>...`
-2. After reading results: `[graphify] Found <N> results. Using this to inform <what>.`
-
-This is NON-NEGOTIABLE. The user watches for these notices. If you skip them, the user cannot tell whether the knowledge graph is influencing your decisions. If you catch yourself about to call a graphify tool without announcing, stop and announce first. If the user points out a missing announcement, apologize and fix it immediately.
-
-There is no valid reason to skip this rule. Not "it's obvious I'm using graphify." Not "I already showed the results." Not "the user didn't ask." The rule applies to EVERY graphify tool call, EVERY time, without exception.
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
 
