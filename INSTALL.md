@@ -109,6 +109,51 @@ opencode .
 /graphify .
 ```
 
+## Use the Agents in Any Project (self-contained bundle)
+
+The agent prompts are designed to be **fully portable**. Each agent's `.md` file is a single self-contained unit — no broken `{file:...}` references, no missing dependencies.
+
+The agents detect their environment on every session start and operate in one of two modes:
+
+| Mode | When | Behavior |
+|---|---|---|
+| **Dispatch mode** | env exposes a `task` / `delegate` / `@mention` tool | Conductor dispatches to real subagents in parallel; subagent boundaries are a hard contract |
+| **Single-agent mode** | no dispatch tool detected | Conductor plays all roles (builder, reviewer, tester, etc.) sequentially using the subagent `.md` files as checklists; honest self-review |
+
+The conductor announces its mode in the first response, so the user always knows what to expect.
+
+### Option A: Use the pre-built bundle (easiest)
+
+The `dist/agents/` directory contains 13 self-contained agent files plus a `MANIFEST.md`. Copy them to your target project:
+
+```bash
+# Build the bundle (idempotent)
+python scripts/build-self-contained-bundle.py
+
+# Copy what you need
+cp dist/agents/conductor.md /path/to/your/project/.opencode/agents/
+cp dist/agents/builder.md    /path/to/your/project/.opencode/agents/
+# ... or copy all 13:
+cp -r dist/agents/*.md /path/to/your/project/.opencode/agents/
+```
+
+This works in any opencode build, any AI client that reads `.md` agent prompts, and any environment. No `global-setup` required, no graphify required, no skill symlinks required.
+
+### Option B: Use global-setup (full feature set)
+
+The standard `global-setup.sh` / `global-setup.bat` install also produces self-contained agents (via `resolve_includes.py`) and adds the graphify skill, plugin, and merged config. Use this when you want the full knowledge-graph-backed workflow.
+
+### Verifying a bundle install
+
+The 5 tests in `tests/test_bundle.py` assert:
+- The bundle script exists
+- All 13 agents are produced
+- Each bundled file has zero remaining `{file:...}` references
+- The bundle includes a `MANIFEST.md`
+- Each bundled file is strictly larger than its source (proves inlining happened)
+
+Run: `python -m pytest tests/test_bundle.py -v`
+
 ## Building the Knowledge Graph
 
 After install, build the knowledge graph for your project:

@@ -507,3 +507,44 @@ o verification tasks found). Fixed.
 - **Architectural summary:** The fix moves graphify from a 4-layer soft-constraint stack (4 places saying "you should") to a 2-layer hard split: conductor queries + formats, subagent consumes + stops-if-missing. The "stops if missing" is the key — a missing block is now a visible dispatch failure, not a silent omission.
 - **Status:** Complete (15 files modified + 1 plan created; no source code changes; all 6 verification checks pass)
 
+## 2026-06-15T00:00:00Z
+- **Task:** Plan 002 — Operating mode + self-contained bundle. The user reported that the agents don't work in projects without a `task` tool. Root cause: the conductor prompt assumed dispatch mode; when the env doesn't expose a dispatch tool, the conductor either rationalizes a fallback or fails. The fix is to detect the env and operate in either **dispatch mode** (with subagents) or **single-agent mode** (sequential self-play with honest self-review), and ship a self-contained `dist/agents/` bundle so the agents work in any project on any machine.
+- **Agents:** @conductor (prompt refactor + script + tests; no code changes elsewhere)
+- **Action:** Plan + execute
+  - Update `conductor.md` with a new "Session Start: Detect operating mode (do this first)" step, a new "Operating mode" section (dispatch / single-agent / honest self-review / missing-tools), and a mode-aware Boundaries section
+  - Add a self-mode note to all 12 subagent `.md` files (after the consume-only line 1): "If you are the conductor in single-agent mode reading this as a reference, follow the same workflow but execute the work yourself — don't try to dispatch a subagent that doesn't exist."
+  - Add `scripts/build-self-contained-bundle.py`: reads `.opencode/agents/*.md`, resolves all `{file:}` includes via the existing `resolve_includes.py`, writes `dist/agents/{name}.md` (13 files) + `dist/agents/MANIFEST.md`. Reuses the resolve logic — no reimplementation.
+  - Add 23 regression tests in two new files: `tests/test_operating_mode.py` (18 tests) and `tests/test_bundle.py` (5 tests). The operating-mode tests assert the conductor documents both modes, mode detection is the first workflow step, the single-agent workflow is described, honest self-review is documented with its limits, boundaries are mode-aware, all 12 subagent files have the self-mode note, and the conductor's first-response language is specified. The bundle tests assert the script exists, runs, produces 13 files, has zero unresolved `{file:}` references, includes a manifest, and produces strictly larger files than the source.
+  - Update `INSTALL.md` with a "Use the Agents in Any Project (self-contained bundle)" section documenting the two operating modes, the bundle as Option A, global-setup as Option B, and how to verify with `pytest tests/test_bundle.py -v`.
+- **Files modified/added:**
+  - `.opencode/agents/conductor.md` (line 1 + 5-6 replaced with detect-mode + operating-mode + boundaries)
+  - `.opencode/agents/{builder,architect,reviewer,tester,docs,debugger,refactor,git,explorer,security,perf,planner}.md` (line 1+2 replaced with self-mode note)
+  - `scripts/build-self-contained-bundle.py` (new, 215 lines)
+  - `tests/test_operating_mode.py` (new, 187 lines, 18 tests)
+  - `tests/test_bundle.py` (new, 145 lines, 5 tests)
+  - `INSTALL.md` (new section "Use the Agents in Any Project")
+  - `.opencode/plans/plan-002-any-project-portability.md` (new)
+  - `dist/agents/*.md` (13 new self-contained files + MANIFEST.md, built by the script)
+  - `.opencode/work-log.md` (this entry)
+  - `.opencode/context.md` (session notes)
+- **Verification:**
+  - `python -m pytest tests/test_operating_mode.py -v` → 18/18 pass in 0.06s
+  - `python -m pytest tests/test_bundle.py -v` → 5/5 pass in 0.36s
+  - `python scripts/build-self-contained-bundle.py` → 13 files + MANIFEST.md written
+  - Full suite `pytest tests/ --ignore=test_agents_runtime --ignore=test_agent_safety` → 245 pass + 1 pre-existing failure + 1 skipped (was 222 before plan-002, so +23 new tests, no regressions)
+  - The pre-existing `test_real_plan_001` failure is unrelated (a different plan-001 in the archive, missing `.git/hooks/pre-commit`)
+  - The pre-existing `T_AS_1` / `T_AS_5` test_agent_safety failure is on the todo list and unrelated
+- **Decisions:**
+  - **Operating mode is detection + announce, not "always single-agent".** The conductor checks its tool list at session start, classifies as dispatch or single-agent, and announces. Users can correct if the detection is wrong. The default is dispatch (the architectural ideal); the fallback is single-agent (works anywhere).
+  - **Single-agent mode is honest self-play, not refusal.** Earlier in this session I almost shipped a "no direct implementation" hard rule; the agent's self-correction (in the user's other project) made me realize the right answer is honest self-play with acknowledged limits, not refusal. The "honest self-review" section names the limits (same model, bias toward ship) and the mitigations (re-read the diff, run tests, ask the user to spot-check large changes).
+  - **Boundaries are mode-aware, not mode-blind.** "Do not implement directly" / "do not write tests" / "do not review your own dispatches" are hard in dispatch mode, necessarily violated in single-agent mode. The honesty rules apply in both modes. "Do not modify opencode.json or AGENT-ROLES.md" and "you are the only agent that dispatches" remain hard in both.
+  - **Track `dist/` in git, don't gitignore it.** The bundle is a primary deliverable — the user can clone the repo, copy `dist/agents/conductor.md` to another project, and have a working agent. No build step required. Alternative (gitignore) was rejected because it would force every user to run `python scripts/build-self-contained-bundle.py` before they can use the bundle. The bundle script + the 5 regression tests catch drift (test_T_BB_3 asserts zero unresolved `{file:}` references, test_T_BB_5 asserts bundled > source size).
+  - **Reuse `resolve_includes.py`, don't reimplement.** The bundle script imports `resolve_text` from the existing module. The resolution logic is identical to what `global-setup` does; one implementation, two callers.
+  - **Did NOT modify `opencode.json` or `AGENT-ROLES.md`.** The "self-mode note" only modifies agent `.md` files. The new bundle script and tests are not agent definitions. Conductor boundary preserved.
+- **Architectural summary:** Plan 002 closes the "agents only work in projects with a `task` tool" gap by:
+  1. Making the conductor **detect and announce** its mode (dispatch vs single-agent)
+  2. Documenting the **single-agent workflow** (sequential phase play, honest self-review)
+  3. **Shipping a portable bundle** (`dist/agents/*.md`) that any project can copy
+  4. **Adding 23 regression tests** that lock in the new protocol
+- **Status:** Complete (16 files modified + 4 new + 14 bundled artifacts; full suite at 245 pass / 1 pre-existing fail / 1 skipped)
+
