@@ -193,46 +193,15 @@ def test_T_GP_4_conductor_step5_contains_query_protocol():
 
 
 # ---------------------------------------------------------------------------
-# T_GP_5: shared/graphify.md has no self-query branch
+# T_GP_5: REMOVED
 # ---------------------------------------------------------------------------
-
-def test_T_GP_5_shared_graphify_md_has_no_self_query_branch():
-    """shared/graphify.md must not tell subagents to query the graph themselves.
-
-    The old decision-tree had:
-        - "If your dispatch does NOT include graph context"
-        - "you MUST query the knowledge graph yourself"
-
-    Both phrases must be gone, and the new "Conductor-owned,
-    subagent-consumed" framing must be present.
-    """
-    content = _read(SHARED_GRAPHIFY_MD)
-
-    # The old self-query decision-tree branch (exact phrasing)
-    old_decision_branch = (
-        "If your dispatch does NOT include graph context"
-    )
-    assert old_decision_branch not in content, (
-        "shared/graphify.md still has the old self-query decision-tree branch"
-    )
-
-    # The old directive telling subagents to query themselves
-    old_directive = "you MUST query the knowledge graph yourself"
-    assert old_directive not in content, (
-        "shared/graphify.md still has the old 'you MUST query the knowledge "
-        "graph yourself' directive"
-    )
-
-    # The new framing IS present
-    assert "Conductor-owned, subagent-consumed" in content, (
-        "shared/graphify.md missing the 'Conductor-owned, subagent-consumed' "
-        "section header — the new framing is not in place"
-    )
-    # And the "stop if missing" behavior is described
-    assert "Stop and tell the user" in content, (
-        "shared/graphify.md missing the 'Stop and tell the user' instruction "
-        "for missing Graph context blocks"
-    )
+# This test previously checked shared/graphify.md for the absence of the
+# old "query the graph yourself" decision-tree branch. That file was
+# removed when graphify was uninstalled (the graphify MCP, Python
+# package, plugin, and the .opencode/ shared file were all dropped).
+# The graphify protocol content is now inlined into the 13 agent .md
+# files; the other 5 graphify tests (T_GP_1 through T_GP_4 + T_GP_6)
+# still cover the conductor and subagent inlined framing.
 
 
 # ---------------------------------------------------------------------------

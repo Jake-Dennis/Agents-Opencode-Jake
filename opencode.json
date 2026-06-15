@@ -20,18 +20,6 @@
       ".opencode/skills"
     ]
   },
-  "mcp": {
-    "graphify": {
-      "type": "local",
-      "command": [
-        "python",
-        "-m",
-        "graphify.serve",
-        "graphify-out/graph.json"
-      ],
-      "enabled": true
-    }
-  },
   "compaction": {
     "auto": true,
     "prune": true
