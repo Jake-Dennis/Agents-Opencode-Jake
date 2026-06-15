@@ -448,3 +448,62 @@ o verification tasks found). Fixed.
   - **One-liner at top of agent files:** Placed before the role description (line 1) so it's the very first thing the model reads. Uses blockquote format (`>`) for visual prominence. References the detailed instructions in the shared graphify include below.
 - **Root cause analysis:** The conductor was querying graphify but not passing results to subagents. Subagents had a soft "before any task, query" instruction buried 4th among 9 shared includes at the bottom of their prompts. LLMs predictably skipped it.
 - **Status:** Complete (15 files modified, all edits verified)
+
+## 2026-06-15T00:00:00Z
+- **Task:** Run `graphify install --platform opencode` to sync the graphify skill/plugin with the installed Python package, clearing a v0.8.31-skill / v0.8.14-package version-drift warning and adding the project-level plugin hook.
+- **Agents:** none (single-step install, no dispatch needed)
+- **Pre-state:**
+  - `graphify` package v0.8.14 installed at `C:\Users\JakeP\AppData\Local\Programs\Python\Python311\Lib\site-packages\graphify\`
+  - `graphify` skill v0.8.31 at `C:\Users\JakeP\.config\opencode\skills\graphify\` (drifted ahead of package)
+  - MCP server config present in root `opencode.json` (lines 23-33) pointing at `python -m graphify.serve graphify-out/graph.json`
+  - No project-level plugin hook or `.opencode/opencode.json` existed
+- **Action:** `graphify install --platform opencode`
+- **Files modified:**
+  - `.opencode/plugins/graphify.js` (added — `tool.execute.before` hook that injects one-shot bash reminder pointing at `graphify query`)
+  - `.opencode/opencode.json` (added — registers `.opencode/plugins/graphify.js`)
+  - `.opencode/package.json` (added — declares `@opencode-ai/plugin` ^1.15.13, type=module)
+  - `~/.config/opencode/skills/graphify/` (refreshed to v0.8.14, matching the pip package)
+  - `.opencode/context.md` (updated session notes)
+- **Verification:**
+  - `graphify --help` — no version warning (skill and package now both 0.8.14)
+  - `python -m graphify.serve graphify-out/graph.json` — boots as stdio MCP server, stays alive waiting for client handshake (verified with redirected stdio pipes; PID 38828 ran 2s, killed cleanly)
+  - `graphify-out/graph.json` — 1,802,175 bytes, 2195 nodes, NetworkX node-link format (`nodes`/`links`/`hyperedges`/`built_at_commit`/`directed`/`multigraph`/`graph`)
+  - `python -c "from graphify.serve import serve, serve_http"` — both functions importable
+  - Graph stats via `graphify_graph_stats` MCP tool: 2195 nodes, 2763 edges, 173 communities, 99% EXTRACTED, 1% INFERRED, 0% AMBIGUOUS
+- **Decisions:**
+  - **Did not upgrade the pip package** — the install command downgraded the skill files to match the package, eliminating the warning. Upgrading the package would be a separate task; v0.8.14 is functional and the skill/package versions are now consistent.
+  - **Did not add a `--project` flag** — the install command wrote the project-level plugin hook and project `.opencode/opencode.json` automatically, which is the correct project-scoped wiring.
+- **Status:** Complete (3 new files + 1 refresh + 1 context log update; no source code changes)
+
+## 2026-06-15T00:00:00Z
+- **Task:** Plan 001 — Make graphify usage structural. Conductor becomes sole owner of graphify queries; subagents consume the `Graph context:` block from the dispatch and never query the graph themselves.
+- **Agents:** @conductor (only — this is a prompt-config refactor in the conductor's domain)
+- **Root cause:** The previous "MANDATORY" line-1 in all 12 subagent files said "use the Graph context: block from your dispatch, OR query the graph yourself". The OR clause let agents skip the dispatch-context path and fall through to raw grep/read. Soft "you should" language is not enforced by LLMs in practice.
+- **Action:** Plan + execute a 4-task refactor across 15 files
+  - Rewrite `.opencode/agents/shared/graphify.md` — remove the "no context → query yourself" branch entirely
+  - Update `.opencode/agents/conductor.md` — new line 1 ("You own the knowledge graph. Before every dispatch, you MUST run graphify_graph_stats + graphify_query_graph...") + expand Step 5 with explicit pre-dispatch query protocol
+  - Update `AGENTS.md` — Dispatch Template section retitled to "MANDATORY — sole mechanism", with explicit "Before every dispatch" steps and failure-mode language ("If a subagent reports 'missing Graph context', YOU forgot to query")
+  - Replace line 1 in all 12 subagent .md files — old "MANDATORY: query yourself" → new "Your dispatch from the conductor includes a `Graph context:` block. Use it. If missing, stop and tell the user — do not query the graph yourself."
+- **Files modified:**
+  - `.opencode/agents/shared/graphify.md` (full rewrite — 47 lines, was 47)
+  - `.opencode/agents/conductor.md` (line 1 + Step 5 expanded)
+  - `AGENTS.md` (Dispatch Template section tightened)
+  - `.opencode/agents/{builder,architect,reviewer,tester,docs,debugger,refactor,git,explorer,security,perf,planner}.md` (line 1 replacement × 12)
+  - `.opencode/plans/plan-001-conductor-owns-graphify.md` (new)
+- **Verification:**
+  - `grep -r "MANDATORY.*query the graph yourself" .opencode/agents/` → 0 matches ✓
+  - `grep -r "query the graph yourself" .opencode/agents/` → 13 matches, all in the NEW line 1 as the inverse instruction "do NOT query" — no directive telling agents to query themselves
+  - All 12 subagent line 1s confirmed via PowerShell: `> Your dispatch from the conductor includes a \`Graph context:\` block. Use it. If missing, stop and tell the user — do not query the graph yourself. See your graphify instructions below.`
+  - conductor.md line 1 confirmed: `> You own the knowledge graph. Before every dispatch, you MUST run \`graphify_graph_stats\` + \`graphify_query_graph\`, format the results into a \`Graph context:\` block, and inline it at the top of the dispatch. Subagents consume; they do not query. See your graphify instructions below.`
+  - shared/graphify.md re-read: no self-query branch remains; the only references to "query" are in the inverse-instruction language
+  - conductor.md Step 5 re-read: explicit 5-step pre-dispatch protocol (graph_stats → query_graph → optional tools → format → inline) + failure-mode language
+  - AGENTS.md dispatch template re-read: retitled "MANDATORY — sole mechanism", explicit "Before every dispatch" steps, failure-mode language at end
+- **Decisions:**
+  - **Conductor is sole owner, not "primary"**: The old prompt said "primary mechanism". Renamed to "sole mechanism" because the inverse — telling subagents to query themselves — was the failure path. "Sole" leaves no escape hatch.
+  - **Removed announcement protocol from shared/graphify.md**: The old "[graphify] Querying..." prefix was a self-reporting protocol for subagents. Since subagents no longer query, this is the conductor's behavior to maintain (and the conductor's Step 5 already says to do it). Moving it would have been a no-op or duplicate.
+  - **Did not delete the tool reference**: Kept the MCP tool list in shared/graphify.md for reference only, with a "you should not need to call these directly" header. Some agents (explorer, architect) have a stronger case for direct graph access; the reference lets them know the tools exist without inviting self-querying.
+  - **Did not modify opencode.json or AGENT-ROLES.md**: Conductor boundary says these require user approval. The MCP server config in opencode.json was already correct from the prior install; AGENT-ROLES.md was not in scope.
+  - **Did not add automated enforcement**: Considered adding a pre-dispatch hook that programmatically checks for `Graph context:` block, but this is prompt-engineering territory and the prompt-level protocol is more direct. Will revisit if the soft constraint still fails in practice.
+- **Architectural summary:** The fix moves graphify from a 4-layer soft-constraint stack (4 places saying "you should") to a 2-layer hard split: conductor queries + formats, subagent consumes + stops-if-missing. The "stops if missing" is the key — a missing block is now a visible dispatch failure, not a silent omission.
+- **Status:** Complete (15 files modified + 1 plan created; no source code changes; all 6 verification checks pass)
+

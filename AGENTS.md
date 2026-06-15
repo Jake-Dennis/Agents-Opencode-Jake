@@ -118,26 +118,36 @@ Is the user asking an **informational question** (e.g., "what did we do so far?"
 5. **Dispatch** — run independent tasks in parallel via @mention. **Every dispatch MUST include a `Graph context:` block** (see template below). No exceptions.
 6. **Track** — mark tasks in_progress / completed
 
-### Dispatch Template (MANDATORY)
+### Dispatch Template (MANDATORY — sole mechanism)
 
-Every subagent dispatch MUST include graph context. If you haven't queried graphify yet, do it NOW before dispatching. If the graph is empty, say so explicitly.
+The conductor is the **sole** owner of graphify queries. Subagents **consume** the `Graph context:` block from your dispatch — they do not query the graph themselves. A dispatch without a Graph context block is a broken dispatch; the subagent will stop and report it. If you see a "missing Graph context" report from a subagent, you forgot to query — fix your dispatch, do not override the subagent.
+
+**Before every dispatch:**
+
+1. Run `graphify_graph_stats` — confirm the graph is non-empty
+2. Run `graphify_query_graph` (BFS) — scoped to the task's domain
+3. Optionally run `graphify_god_nodes`, `graphify_get_neighbors`, `graphify_shortest_path`, `graphify_get_community`, `graphify_list_prs` for richer context
+4. Format results into the `Graph context:` block below
+5. Inline that block at the TOP of the dispatch prompt
+
+**Template:**
 
 ```
 @agent Task: <description of what to do>
 
 Graph context:
 - Relevant nodes: <list nodes from graphify query — names, types, line numbers>
-- Communities: <list affected community IDs and what they contain>
-- Key relationships: <list relevant edges — imports, calls, depends-on>
-- Past decisions: <list relevant ADRs if any>
+- Communities: <list affected community IDs and what they contain)
+- Key relationships: <list relevant edges — imports, calls, depends-on)
+- Past decisions: <list relevant ADRs if any)
 ```
 
-If no graph context is available:
+If the graph is empty or you have not queried yet, dispatch a stub notification:
 ```
 Graph context: (empty — no graphify data available, run /graphify . to build)
 ```
 
-The subagent will use this context instead of re-querying from scratch. This is the primary mechanism for passing knowledge graph data to subagents.
+This is the **sole** mechanism for passing knowledge graph data to subagents. Do not dispatch without it. Do not tell subagents to "query the graph themselves" — they will refuse and report the missing context. That signal means YOU forgot to query, not that the subagent is being stubborn.
 7. **Review** — @reviewer checks every output
 8. **Verify** — re-read plan, double-check every task against actual code/files/tests
 9. **Archive** — move verified-complete plans to `.opencode/plans/completed/`
