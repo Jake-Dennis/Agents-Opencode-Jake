@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build Release Artifacts
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building release v$VERSION"
+
+      - name: Build .tar.gz (Linux/Mac)
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x build-release.sh
+          ./build-release.sh "${{ steps.version.outputs.version }}"
+
+      - name: Build .zip (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Create Windows .zip
+          $version = "${{ steps.version.outputs.version }}"
+          $dirName = "agents-opencode-jake-v$version"
+          $zipName = "$dirName.zip"
+
+          # Copy files
+          New-Item -ItemType Directory -Path $dirName -Force | Out-Null
+          Copy-Item global-setup.bat, global-setup.sh, uninstall-global.bat, uninstall-global.sh, setup.bat, setup.sh, uninstall.bat, uninstall.sh, AGENTS.md, README.md, INSTALL.md, opencode.json, LICENSE -Destination $dirName -ErrorAction SilentlyContinue
+          Copy-Item .opencode -Destination $dirName -Recurse -Force
+
+          # Create zip
+          Compress-Archive -Path $dirName -DestinationPath $zipName -Force
+
+          # Generate checksum
+          $hash = Get-FileHash $zipName -Algorithm SHA256
+          "$($hash.Hash.ToLower())  $zipName" | Out-File -FilePath "$zipName.sha256" -Encoding ASCII
+
+          Write-Host "Built: $zipName"
+          Get-ChildItem *.zip
+
+      - name: Upload .tar.gz artifact
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-tarball
+          path: release/*.tar.gz
+
+      - name: Upload .zip artifact
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-zip
+          path: '*.zip'
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
+            artifacts/**/*.sha256
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

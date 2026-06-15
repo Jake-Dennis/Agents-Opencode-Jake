@@ -14,17 +14,22 @@ This is a reusable `opencode.json` agent collection. It provides:
 
 ## Use in your own project
 
-### Option A — clone and symlink
+**Works on Windows, Mac, and Linux.** Choose your platform:
 
-```cmd
-:: 1. Clone the repo
+### Quick Start (all platforms)
+
+```bash
+# 1. Clone the repo
 git clone https://github.com/Jake-Dennis/Agents-Opencode-Jake.git
 cd Agents-Opencode-Jake
 
-:: 2. Run setup — installs everything into your project
+# 2. Run setup (choose your platform)
+# Windows:
 setup.bat
+# Mac/Linux:
+./setup.sh
 
-:: 3. Open in OpenCode
+# 3. Open in OpenCode
 opencode .
 /graphify .
 ```
@@ -33,14 +38,16 @@ opencode .
 
 The `/graphify` skill auto-refreshes whenever you re-run the installer.
 
+For a **global install** (available in every project), use `global-setup.bat` (Windows) or `./global-setup.sh` (Mac/Linux). See [INSTALL.md](INSTALL.md) for the complete guide.
+
 ### Other scripts
 
 | Script | Purpose |
 |--------|---------|
-| `setup.bat` | Install agents locally for this project |
-| `uninstall.bat` | Remove local setup |
-| `global-setup.bat` | Install agents globally — merges `opencode.json` into `%USERPROFILE%\.config\opencode\opencode.jsonc`, symlinks the skill. Supports `--unattended`, `--dry-run`, `--force`. |
-| `uninstall-global.bat` | Surgically remove global install (uses install manifest). Supports `--unattended`, `--dry-run`. |
+| `setup.bat` / `setup.sh` | Install agents locally for this project |
+| `uninstall.bat` / `uninstall.sh` | Remove local setup |
+| `global-setup.bat` / `global-setup.sh` | Install agents globally — merges `opencode.json` into `~/.config/opencode/opencode.jsonc`, symlinks the skill. Supports `--unattended`, `--dry-run`, `--force`. |
+| `uninstall-global.bat` / `uninstall-global.sh` | Surgically remove global install (uses install manifest). Supports `--unattended`, `--dry-run`. |
 
 ### Global install
 

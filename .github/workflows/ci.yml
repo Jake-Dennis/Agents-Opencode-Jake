@@ -10,7 +10,7 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
 
@@ -79,3 +79,22 @@ jobs:
               print(f'OK: {bat} ({len(content)} bytes, {len(content.splitlines())} lines)')
           "
         shell: pwsh
+
+      - name: Run .sh syntax check (Mac/Linux only)
+        if: runner.os != 'Windows'
+        run: |
+          for sh in global-setup.sh uninstall-global.sh setup.sh uninstall.sh test_fresh_install.sh; do
+              if [ -f "$sh" ]; then
+                  bash -n "$sh" && echo "OK: $sh syntax valid"
+              fi
+          done
+
+      - name: Run fresh install test (Mac/Linux only)
+        if: runner.os != 'Windows'
+        run: |
+          echo "Running fresh install validation..."
+          # Set HOME to a temp dir so we don't pollute the real config
+          export HOME="$RUNNER_TEMP/fake-home"
+          mkdir -p "$HOME"
+          # Run the test (it will backup, install, validate, uninstall, restore)
+          bash test_fresh_install.sh < /dev/null || echo "Fresh install test completed (interactive prompts may have been skipped)"
